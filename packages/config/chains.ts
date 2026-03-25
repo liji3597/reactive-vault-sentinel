@@ -1,0 +1,26 @@
+export const CONTRACTS = {
+  11155111: {
+    mockPriceFeed: "0x0000000000000000000000000000000000000000",
+    balanceMonitor: "0x0000000000000000000000000000000000000000",
+  },
+  84532: {
+    vaultExecution: "0x0000000000000000000000000000000000000000",
+    basicAdapter: "0x0000000000000000000000000000000000000000",
+    uniswapAdapter: "0x0000000000000000000000000000000000000000",
+    aaveAdapter: "0x0000000000000000000000000000000000000000",
+  },
+  5318007: {
+    vaultSentinelReactive: "0x0000000000000000000000000000000000000000",
+  },
+} as const;
+
+export const CALLBACK_PROXIES = {
+  11155111: "0xc9f36411C9897e7F959D99ffca2a0Ba7ee0D7bDA",
+  84532: "0xa6eA49Ed671B8a4dfCDd34E36b7a75Ac79B8A5a6",
+} as const;
+
+export const CHAIN_METADATA = {
+  11155111: { id: 11155111, name: "Sepolia", color: "#627EEA" },
+  84532: { id: 84532, name: "Base Sepolia", color: "#0052FF" },
+  5318007: { id: 5318007, name: "Reactive Lasna", color: "#22d3ee" },
+} as const;

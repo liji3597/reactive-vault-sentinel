@@ -1,0 +1,11 @@
+{
+  "name": "reactive-vault-sentinel",
+  "private": true,
+  "packageManager": "pnpm@10.30.1",
+  "scripts": {
+    "dev:web": "pnpm --filter @vault-sentinel/web dev",
+    "build:web": "pnpm --filter @vault-sentinel/web build",
+    "lint:web": "pnpm --filter @vault-sentinel/web lint",
+    "test:contracts": "pnpm --dir contracts exec forge test"
+  }
+}
