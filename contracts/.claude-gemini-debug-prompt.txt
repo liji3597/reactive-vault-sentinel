@@ -1,0 +1,41 @@
+ROLE_FILE: C:/Users/asd10/.claude/.ccg/prompts/gemini/debugger.md
+<TASK>
+Requirement: Continue fixing and unblocking Step 11 end-to-end flow for the reactive vault demo. Diagnose why real Sepolia events are not producing RuleTriggered/Callback on Reactive Lasna, and identify the next concrete fix path.
+Context:
+- Goal: achieve a real Sepolia -> Reactive Lasna -> Base Sepolia callback flow, ideally ending with ExecutionSucceeded on Base.
+- Current sentinel on Reactive: 0x0AE465e2143df53ff303a529789404a73620A58F
+- Destination executor on Base: 0xF1212FF8b7A3E79c5fA724045838a4B2E4d798a4
+- Source contracts on Sepolia: MockPriceFeed 0xFac28E7a698668f160C4735005C34Cbe57EbdC02, BalanceMonitor 0x9176d7709cbDcf5200439d8a9E83a1A134fcE570
+- Deployment fact: new sentinel was deployed successfully via forge create, and deployment logs showed two system subscribe actions plus RuleAdded for rule 0 and rule 1.
+- Onchain rule reads confirm:
+  - rule 0 = PriceBelow, sourceChainId 11155111, sourceContract MockPriceFeed, topic0 AnswerUpdated, adapter 0x4CB3Ce4DeCE936Aa93f1ABb95550Ad187f03f14E, threshold 180000000000
+  - rule 1 = TransferOutflow, sourceChainId 11155111, sourceContract BalanceMonitor, topic0 BalanceChanged, adapter 0x4CB3Ce4DeCE936Aa93f1ABb95550Ad187f03f14E, threshold 1000000000000000000
+- Real triggers already executed on Sepolia:
+  1) MockPriceFeed.setAnswer(130000000000) emitted AnswerUpdated with value below threshold.
+  2) BalanceMonitor emitted BalanceChanged with oldBalance 0.02 ETH and newBalance about 0.000499978995548 ETH, below threshold.
+- Observed failure: the new sentinel address only has deployment-time RuleAdded logs. There are NO RuleTriggered logs and NO Callback logs after either Sepolia trigger. Base VaultExecution also shows no ExecutionSucceeded/ExecutionFailed logs.
+- Old sentinels were paused to remove duplicate subscriptions; current sentinel resume/debt paths were checked and debt was 0.
+- Key code facts:
+  - VaultSentinelReactive constructor subscribes only when !vm:
+    if (!vm) {
+        service.subscribe(SEPOLIA_CHAIN_ID, _priceFeed, ANSWER_UPDATED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+        service.subscribe(SEPOLIA_CHAIN_ID, _balanceMonitor, BALANCE_CHANGED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+    }
+  - react() emits Callback and RuleTriggered only after exact chain/contract/topic match and _isTriggered success.
+  - For callbacks it encodes:
+        abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, address(0), rule.id, rule.adapter, rule.extraData)
+  - VaultExecution.executeFromReactive on Base is gated by authorizedSenderOnly and rvmIdOnly(rvmId).
+  - AbstractCallback sets rvm_id = msg.sender in constructor, so destination executor may reject rvmId == address(0) even if callback arrives.
+- Important code locations:
+  - src/sentinel/VaultSentinelReactive.sol
+  - src/execution/VaultExecution.sol
+  - lib/reactive-lib/src/abstract-base/AbstractReactive.sol
+  - lib/reactive-lib/src/abstract-base/AbstractPausableReactive.sol
+  - lib/reactive-lib/src/abstract-base/AbstractCallback.sol
+What I need from you:
+1) Rank the top likely root causes for why Sepolia events are not reaching react() on the new sentinel.
+2) Distinguish system / subscription / ReactVM routing issues from contract-logic issues.
+3) State whether the hard-coded callback payload rvmId=address(0) is definitely a second blocker on Base.
+4) Give the smallest safe verification or fix sequence to unblock progress next.
+</TASK>
+OUTPUT: Diagnostic hypotheses ranked by likelihood. For each hypothesis include cause, evidence, and concrete next verification/fix.

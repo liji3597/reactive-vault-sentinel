@@ -1,0 +1,46 @@
+ROLE_FILE: C:/Users/asd10/.claude/.ccg/prompts/gemini/debugger.md
+<TASK>
+Requirement: Continue investigating the Reactive system-level blocker in Step 11. The Base-side callback authorization mismatch has already been fixed locally and a new Reactive sentinel has been redeployed, but post-deploy Sepolia events still do not produce any Reactive callback activity. Diagnose the Reactive infrastructure/system side only.
+Context:
+- Goal: determine why Sepolia events are not reaching react() on the current Lasna sentinel, and identify the smallest reliable verification path.
+- Current Reactive sentinel: 0x0C9EA7c7D65B494409d6523477bfFaf66F618F04
+- Previous sentinel paused: 0x0AE465e2143df53ff303a529789404a73620A58F
+- Base executor: 0xF1212FF8b7A3E79c5fA724045838a4B2E4d798a4
+- MockPriceFeed: 0xFac28E7a698668f160C4735005C34Cbe57EbdC02
+- BalanceMonitor: 0x9176d7709cbDcf5200439d8a9E83a1A134fcE570
+- New sentinel deployment tx: 0x96f54a380b0af6b9cde288dfdc8fc447412e81216ba2bf8a5c0f54abed56cd61
+- Onchain check after redeploy: nextRuleId() returns 2 on the new sentinel.
+- Base-side known blocker already addressed in code locally:
+  - sentinel payload rvmId changed from address(0) to owner
+  - VaultExecution constructor now sets rvm_id = _owner
+  - local Foundry tests all pass
+- Base callback debt check:
+  - executor debt was 1166621400000 wei before
+  - executor funded and coverDebt() executed successfully
+  - executor debt is now 0
+  - basic adapter debt is 0
+- Latest post-fix Sepolia trigger:
+  - MockPriceFeed.setAnswer(120000000000)
+  - tx hash: 0xba412e60f5312750808a8ec04094fb3f3d2a68cc4e0282d9959e1386bd76a128
+- Observed result after that trigger:
+  - Reactive sentinel logs: none after redeploy
+  - Base VaultExecution logs: none after redeploy
+- Key code facts:
+  - VaultSentinelReactive constructor subscribes only when !vm:
+    service.subscribe(SEPOLIA_CHAIN_ID, _priceFeed, ANSWER_UPDATED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE)
+    service.subscribe(SEPOLIA_CHAIN_ID, _balanceMonitor, BALANCE_CHANGED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE)
+  - react() is vmOnly and only emits Callback/RuleTriggered after exact chain/contract/topic match and _isTriggered succeeds.
+  - detectVm() sets vm = extcodesize(systemContract) == 0.
+  - Old sentinel pause() on Reactive emitted system unsubscribe logs successfully.
+- Important files:
+  - src/sentinel/VaultSentinelReactive.sol
+  - lib/reactive-lib/src/abstract-base/AbstractReactive.sol
+  - lib/reactive-lib/src/abstract-base/AbstractPausableReactive.sol
+  - lib/reactive-lib/src/interfaces/ISubscriptionService.sol
+What I need:
+1) Rank the top Reactive system-level root causes for why the new sentinel receives no post-deploy events.
+2) Separate likely causes into: subscription-registration issue, event-indexing/routing issue, ReactVM instantiation/state issue, or event-tuple mismatch.
+3) Tell me the most informative next chain-level checks, especially if the local ABI does not expose a subscriber enumeration helper.
+4) If this now looks like an external infrastructure issue rather than contract code, say so explicitly and list the strongest evidence bundle.
+</TASK>
+OUTPUT: Diagnostic hypotheses ranked by likelihood. For each include cause, evidence, and the next verification step.

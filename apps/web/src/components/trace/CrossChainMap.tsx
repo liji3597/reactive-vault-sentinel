@@ -1,27 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import PhaseCard from './PhaseCard';
 import ConnectingLine from './ConnectingLine';
-import { motion } from 'framer-motion';
 
-export default function CrossChainMap() {
-  const [activePhase, setActivePhase] = useState(1);
-
-  // Simple demo loop
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActivePhase((current) => (current % 3) + 1);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
+export default function CrossChainMap({ activePhase }: { activePhase: 1 | 2 | 3 }) {
   return (
     <div className="relative h-full flex items-center justify-between gap-4 z-10 px-4">
-      {/* Source Chain */}
       <div className="flex-1 flex flex-col items-center">
         <h3 className="text-slate-500 font-mono text-sm mb-6 uppercase tracking-widest">Source Chain</h3>
-        <PhaseCard 
+        <PhaseCard
           phase={1}
           title="Sepolia"
           status={activePhase === 1 ? 'triggering' : 'idle'}
@@ -35,10 +22,9 @@ export default function CrossChainMap() {
         <ConnectingLine active={activePhase === 2} />
       </div>
 
-      {/* Reactive Network */}
       <div className="flex-1 flex flex-col items-center">
         <h3 className="text-cyan-400 font-mono text-sm mb-6 uppercase tracking-widest">Reactive VM</h3>
-        <PhaseCard 
+        <PhaseCard
           phase={2}
           title="ReactVM"
           status={activePhase === 2 ? 'processing' : 'idle'}
@@ -52,13 +38,12 @@ export default function CrossChainMap() {
         <ConnectingLine active={activePhase === 3} />
       </div>
 
-      {/* Destination Chain */}
       <div className="flex-1 flex flex-col items-center">
         <h3 className="text-slate-500 font-mono text-sm mb-6 uppercase tracking-widest">Destination Chain</h3>
-        <PhaseCard 
+        <PhaseCard
           phase={3}
           title="Base Sepolia"
-          status={activePhase === 3 ? 'executing' : (activePhase === 1 ? 'completed' : 'idle')}
+          status={activePhase === 3 ? 'executing' : activePhase === 1 ? 'completed' : 'idle'}
           details="Vault Action Executed"
           txHash="0x8b1c...f912"
           isActive={activePhase === 3}

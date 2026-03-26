@@ -6,6 +6,7 @@
     "dev:web": "pnpm --filter @vault-sentinel/web dev",
     "build:web": "pnpm --filter @vault-sentinel/web build",
     "lint:web": "pnpm --filter @vault-sentinel/web lint",
-    "test:contracts": "pnpm --dir contracts exec forge test"
+    "test:contracts": "bash scripts/contracts/test.sh",
+    "smoke:e2e": "bash scripts/e2e/smoke.sh"
   }
 }

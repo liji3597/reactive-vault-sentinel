@@ -1,0 +1,29 @@
+Step11 Incident Evidence Pack
+Date: 2026-03-26
+Project: reactive-vault-sentinel
+Plan: D:\reactive hackathon\.claude\plan\vault-sentinel.md
+
+Summary
+- Smoke verification executed 3 consecutive rounds.
+- All rounds failed with exit code 1.
+- Failure signatures are consistent with infra-side RPC instability (HTTP 400 / intermittent TLS in adjacent runs), not deterministic script syntax/regression.
+
+Round Results
+- ROUND=1 EXIT=1 LOG=C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-1.log
+- ROUND=2 EXIT=1 LOG=C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-2.log
+- ROUND=3 EXIT=1 LOG=C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-3.log
+
+Observed Errors
+- curl: (22) The requested URL returned error: 400
+- (Historical adjacent runs) curl: (35) schannel TLS handshake failure
+
+Current Script Hardening Status
+- Strict env parser enabled (no `source` execution).
+- Private key argv leak mitigated (ETH_PRIVATE_KEY scoped invocation).
+- Callback polling gated by observed source event.
+- Timeout and poll interval positive-integer validation enabled.
+- Unused sentinel log polling removed.
+
+Current Assessment
+- LIKELY_REACTIVE_INFRA_ISSUE remains the dominant diagnosis.
+- Code path is converged; external Reactive RPC/indexing/routing health is the blocker.

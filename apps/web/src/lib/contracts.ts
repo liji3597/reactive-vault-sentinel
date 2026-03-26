@@ -1,9 +1,37 @@
+export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
+
+export type AppMode = 'demo' | 'live';
+
+type ContractAddressKey =
+  | 'vaultSentinel'
+  | 'vaultExecution'
+  | 'priceFeed'
+  | 'balanceMonitor';
+
+function normalizeAddress(value: string | undefined): `0x${string}` {
+  if (value && /^0x[a-fA-F0-9]{40}$/.test(value)) {
+    return value as `0x${string}`;
+  }
+
+  return ZERO_ADDRESS;
+}
+
 export const CONTRACT_ADDRESSES = {
-  vaultSentinel: "0x0000000000000000000000000000000000000000",
-  vaultExecution: "0x0000000000000000000000000000000000000000",
-  priceFeed: "0x0000000000000000000000000000000000000000",
-  balanceMonitor: "0x0000000000000000000000000000000000000000",
-};
+  vaultSentinel: normalizeAddress(process.env.NEXT_PUBLIC_VAULT_SENTINEL),
+  vaultExecution: normalizeAddress(process.env.NEXT_PUBLIC_VAULT_EXECUTION),
+  priceFeed: normalizeAddress(process.env.NEXT_PUBLIC_PRICE_FEED),
+  balanceMonitor: normalizeAddress(process.env.NEXT_PUBLIC_BALANCE_MONITOR),
+} satisfies Record<ContractAddressKey, `0x${string}`>;
+
+export function isZeroAddress(address: string) {
+  return address.toLowerCase() === ZERO_ADDRESS;
+}
+
+export const contractsConfigured = Object.values(CONTRACT_ADDRESSES).every(
+  (address) => !isZeroAddress(address)
+);
+
+export const appMode: AppMode = contractsConfigured ? 'live' : 'demo';
 
 export const VAULT_SENTINEL_ABI = [
   "function addRule(uint8 ruleType, uint256 sourceChainId, address sourceContract, uint256 topic0, address adapter, uint64 callbackGasLimit, uint256 threshold, bytes extraData) external returns (uint256)",

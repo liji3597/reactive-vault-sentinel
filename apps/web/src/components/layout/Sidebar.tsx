@@ -49,14 +49,22 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               className={clsx(
-                "flex items-center gap-4 p-3 rounded-lg transition-all group relative",
+                "flex items-center gap-4 p-3 rounded-xl transition-all group relative overflow-hidden",
                 isActive ? "bg-cyan-400/10 text-cyan-400 shadow-cyan-glow" : "text-slate-400 hover:text-white hover:bg-slate-800"
               )}
             >
-              <Icon size={24} className={clsx(isActive ? "text-cyan-400" : "group-hover:text-cyan-400 transition-colors")} />
-              {!collapsed && <span className="font-medium">{item.name}</span>}
               {isActive && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-cyan-400 rounded-r-full" />
+                <div className="absolute inset-0 pointer-events-none z-0">
+                  <div className="w-full h-[1px] bg-cyan-400/20 absolute top-0 animate-scan" />
+                </div>
+              )}
+              <Icon size={22} className={clsx(
+                "relative z-10 transition-transform group-hover:scale-110",
+                isActive ? "text-cyan-400" : "group-hover:text-cyan-400"
+              )} />
+              {!collapsed && <span className="font-semibold relative z-10 tracking-wide text-sm uppercase">{item.name}</span>}
+              {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1.5 h-6 bg-cyan-400 rounded-r-full shadow-[0_0_10px_#22d3ee]" />
               )}
             </Link>
           );

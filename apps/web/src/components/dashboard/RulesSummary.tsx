@@ -1,32 +1,35 @@
 'use client';
 
-import { Play, Pause, Trash2, Settings2 } from 'lucide-react';
+import { Pause, Play, Settings2, Trash2 } from 'lucide-react';
+import { DEFAULT_DEMO_RULES, type DemoRule } from '@/lib/demoData';
 
-const mockRules = [
-  { id: 1, name: 'ETH Depeg Guardian', type: 'PriceBelow', threshold: '3400 USD', status: 'Active', color: 'emerald' },
-  { id: 2, name: 'Balance Refill', type: 'TransferOutflow', threshold: '2.5 ETH', status: 'Active', color: 'emerald' },
-  { id: 3, name: 'Stop Loss - WBTC', type: 'PriceBelow', threshold: '62000 USD', status: 'Paused', color: 'slate' },
-];
-
-export default function RulesSummary() {
+export default function RulesSummary({
+  rules = DEFAULT_DEMO_RULES,
+}: {
+  rules?: DemoRule[];
+}) {
   return (
     <div className="space-y-4">
-      {mockRules.map((rule) => (
-        <div 
+      {rules.map((rule) => (
+        <div
           key={rule.id}
-          className="p-5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all flex items-center justify-between"
+          className="p-5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all flex items-center justify-between gap-4"
         >
-          <div className="flex items-center gap-4">
-            <div className={`w-3 h-3 rounded-full bg-${rule.color}-400 ${rule.status === 'Active' ? 'animate-pulse' : ''}`} />
-            <div>
-              <div className="font-semibold">{rule.name}</div>
-              <div className="text-xs text-slate-500 font-mono">
+          <div className="flex items-center gap-4 min-w-0">
+            <div
+              className={`w-3 h-3 rounded-full ${
+                rule.status === 'Active' ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
+              }`}
+            />
+            <div className="min-w-0">
+              <div className="font-semibold truncate">{rule.name}</div>
+              <div className="text-xs text-slate-500 font-mono truncate">
                 {rule.type} | Threshold: {rule.threshold}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 transition-all">
               <Settings2 size={18} />
             </button>

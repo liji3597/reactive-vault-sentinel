@@ -33,6 +33,27 @@ const config: Config = {
       },
       boxShadow: {
         'cyan-glow': '0 0 15px rgba(34, 211, 238, 0.4)',
+        'emerald-glow': '0 0 15px rgba(52, 211, 153, 0.4)',
+        'amber-glow': '0 0 15px rgba(251, 191, 36, 0.4)',
+      },
+      keyframes: {
+        scan: {
+          '0%': { transform: 'translateY(-100%)' },
+          '100%': { transform: 'translateY(100%)' },
+        },
+        shimmer: {
+          '0%': { transform: 'translateX(-100%)' },
+          '100%': { transform: 'translateX(100%)' },
+        },
+        'pulse-slow': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.6' },
+        },
+      },
+      animation: {
+        scan: 'scan 4s linear infinite',
+        shimmer: 'shimmer 2.5s infinite',
+        'pulse-slow': 'pulse-slow 4s ease-in-out infinite',
       },
     },
   },

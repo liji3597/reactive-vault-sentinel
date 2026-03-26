@@ -16,6 +16,7 @@ contract VaultSentinelReactiveTest is Test {
     uint256 internal constant SEPOLIA_CHAIN_ID = 11155111;
     uint256 internal constant DESTINATION_CHAIN_ID = 84532;
     uint64 internal constant CALLBACK_GAS = 300000;
+    uint256 internal constant ANSWER_UPDATED_TOPIC_0 = uint256(keccak256("AnswerUpdated(int256,uint256,uint256)"));
 
     address internal owner = address(this);
     address internal vaultExecution = address(0xE1);
@@ -123,7 +124,7 @@ contract VaultSentinelReactiveTest is Test {
         });
 
         bytes memory payload =
-            abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, address(0), ruleId, adapter, extraData);
+            abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, owner, ruleId, adapter, extraData);
 
         vm.expectEmit(true, true, true, true, address(sentinel));
         emit Callback(DESTINATION_CHAIN_ID, vaultExecution, CALLBACK_GAS, payload);
@@ -200,16 +201,69 @@ contract VaultSentinelReactiveTest is Test {
         });
 
         bytes memory payload =
-            abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, address(0), ruleId, adapter, extraData);
+            abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, owner, ruleId, adapter, extraData);
         vm.expectEmit(true, true, true, true, address(sentinel));
         emit Callback(DESTINATION_CHAIN_ID, vaultExecution, CALLBACK_GAS, payload);
 
         sentinel.react(log);
     }
 
+    function test_ConstructorBootstrapsRules() external {
+        bytes memory extraData = abi.encode(address(0xB0), uint256(99));
+        VaultSentinelReactive.RuleInput[] memory bootstrapRules = new VaultSentinelReactive.RuleInput[](1);
+        bootstrapRules[0] = VaultSentinelReactive.RuleInput({
+            ruleType: VaultSentinelReactive.RuleType.PriceBelow,
+            sourceChainId: SEPOLIA_CHAIN_ID,
+            sourceContract: priceFeed,
+            topic0: ANSWER_UPDATED_TOPIC_0,
+            adapter: adapter,
+            callbackGasLimit: CALLBACK_GAS,
+            threshold: uint256(1000e8),
+            extraData: extraData
+        });
+
+        VaultSentinelReactive bootstrapped = _deployRnSentinelWithRules(bootstrapRules);
+        assertEq(bootstrapped.nextRuleId(), 1);
+
+        _flipVmToTrue(bootstrapped);
+
+        IReactive.LogRecord memory log = IReactive.LogRecord({
+            chain_id: SEPOLIA_CHAIN_ID,
+            _contract: priceFeed,
+            topic_0: ANSWER_UPDATED_TOPIC_0,
+            topic_1: uint256(uint160(uint256(int256(900e8)))),
+            topic_2: 1,
+            topic_3: 0,
+            data: abi.encode(uint256(block.timestamp)),
+            block_number: block.number,
+            op_code: 0,
+            block_hash: 0,
+            tx_hash: uint256(keccak256("tx_constructor_bootstrap")),
+            log_index: 4
+        });
+
+        bytes memory payload =
+            abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, owner, uint256(0), adapter, extraData);
+
+        vm.expectEmit(true, true, true, true, address(bootstrapped));
+        emit Callback(DESTINATION_CHAIN_ID, vaultExecution, CALLBACK_GAS, payload);
+
+        bootstrapped.react(log);
+    }
+
     function _deployRnSentinel() internal returns (VaultSentinelReactive) {
+        VaultSentinelReactive.RuleInput[] memory bootstrapRules = new VaultSentinelReactive.RuleInput[](0);
+        return _deployRnSentinelWithRules(bootstrapRules);
+    }
+
+    function _deployRnSentinelWithRules(VaultSentinelReactive.RuleInput[] memory bootstrapRules)
+        internal
+        returns (VaultSentinelReactive)
+    {
         vm.etch(SYSTEM_CONTRACT, hex"00");
-        return new VaultSentinelReactive(owner, vaultExecution, DESTINATION_CHAIN_ID, priceFeed, balanceMonitor, CALLBACK_GAS);
+        return new VaultSentinelReactive(
+            owner, vaultExecution, DESTINATION_CHAIN_ID, priceFeed, balanceMonitor, CALLBACK_GAS, bootstrapRules
+        );
     }
 
     function _flipVmToTrue(VaultSentinelReactive target) internal {

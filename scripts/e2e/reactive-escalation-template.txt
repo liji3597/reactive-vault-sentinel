@@ -1,0 +1,35 @@
+Subject: Step11 smoke still blocked after script hardening — likely Reactive infra issue
+
+Hi Reactive team,
+
+We re-ran our Step11 E2E smoke flow (3 consecutive rounds) on 2026-03-26 after hardening the client-side smoke script.
+
+What was hardened:
+- Replaced env `source` with strict KEY=VALUE parser.
+- Mitigated private-key CLI leakage by using env-scoped signer flow.
+- Gated callback polling until source event is observed.
+- Added validation for timeout/poll interval inputs.
+- Removed unused polling noise.
+
+Run results:
+- 3/3 rounds failed (exit code 1).
+- Logs repeatedly show RPC-layer failures (HTTP 400).
+- Intermittent TLS handshake instability observed in adjacent runs.
+
+Evidence:
+- C:\Users\asd10\AppData\Local\Temp\step11-smoke-summary.txt
+- C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-1.log
+- C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-2.log
+- C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-3.log
+- D:\reactive hackathon\reactive-vault-sentinel\scripts\e2e\step11-incident-evidence.txt
+
+Assessment:
+- This currently looks infrastructure-side (RPC/indexing/routing/callback dispatch), not deterministic application logic regression.
+- It aligns with the prior outage pattern observed around 2026-03-23.
+
+Please help verify:
+1) Lasna RPC health and request routing for our test window.
+2) Event indexing and callback dispatch path for callback topic.
+3) Any ongoing degraded-service or capacity incidents affecting callback visibility.
+
+We can provide additional tx-level traces immediately if needed.

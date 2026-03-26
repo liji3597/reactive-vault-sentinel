@@ -24,6 +24,17 @@ contract VaultSentinelReactive is AbstractPausableReactive {
         bytes extraData;
     }
 
+    struct RuleInput {
+        RuleType ruleType;
+        uint256 sourceChainId;
+        address sourceContract;
+        uint256 topic0;
+        address adapter;
+        uint64 callbackGasLimit;
+        uint256 threshold;
+        bytes extraData;
+    }
+
     uint256 public constant SEPOLIA_CHAIN_ID = 11155111;
     uint64 public constant MIN_CALLBACK_GAS = 100000;
     uint64 public constant MAX_CALLBACK_GAS = 900000;
@@ -58,7 +69,8 @@ contract VaultSentinelReactive is AbstractPausableReactive {
         uint256 _destinationChainId,
         address _priceFeed,
         address _balanceMonitor,
-        uint64 _defaultCallbackGas
+        uint64 _defaultCallbackGas,
+        RuleInput[] memory bootstrapRules
     ) payable {
         if (_owner == address(0) || _vaultExecution == address(0) || _priceFeed == address(0) || _balanceMonitor == address(0)) {
             revert InvalidAddress();
@@ -70,6 +82,21 @@ contract VaultSentinelReactive is AbstractPausableReactive {
         priceFeed = _priceFeed;
         balanceMonitor = _balanceMonitor;
         defaultCallbackGas = _validateGasLimit(_defaultCallbackGas);
+
+        uint256 bootstrapLen = bootstrapRules.length;
+        for (uint256 i = 0; i < bootstrapLen; ++i) {
+            RuleInput memory rule = bootstrapRules[i];
+            _addRule(
+                rule.ruleType,
+                rule.sourceChainId,
+                rule.sourceContract,
+                rule.topic0,
+                rule.adapter,
+                rule.callbackGasLimit,
+                rule.threshold,
+                rule.extraData
+            );
+        }
 
         if (!vm) {
             service.subscribe(SEPOLIA_CHAIN_ID, _priceFeed, ANSWER_UPDATED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
@@ -89,6 +116,19 @@ contract VaultSentinelReactive is AbstractPausableReactive {
         uint256 threshold,
         bytes calldata extraData
     ) external rnOnly onlyOwner returns (uint256) {
+        return _addRule(ruleType, sourceChainId, sourceContract, topic0, adapter, callbackGasLimit, threshold, extraData);
+    }
+
+    function _addRule(
+        RuleType ruleType,
+        uint256 sourceChainId,
+        address sourceContract,
+        uint256 topic0,
+        address adapter,
+        uint64 callbackGasLimit,
+        uint256 threshold,
+        bytes memory extraData
+    ) internal returns (uint256) {
         if (sourceContract == address(0) || adapter == address(0)) {
             revert InvalidAddress();
         }
@@ -153,7 +193,7 @@ contract VaultSentinelReactive is AbstractPausableReactive {
             }
 
             bytes memory payload = abi.encodeWithSelector(
-                VaultExecution.executeFromReactive.selector, address(0), rule.id, rule.adapter, rule.extraData
+                VaultExecution.executeFromReactive.selector, owner, rule.id, rule.adapter, rule.extraData
             );
 
             emit Callback(destinationChainId, vaultExecution, rule.callbackGasLimit, payload);

@@ -43,6 +43,7 @@ contract ReactiveVaultFlowTest is Test {
         adapter = new FlowAdapter();
         execution.setAdapterAllowed(address(adapter), true);
 
+        VaultSentinelReactive.RuleInput[] memory bootstrapRules = new VaultSentinelReactive.RuleInput[](0);
         vm.etch(SYSTEM_CONTRACT, hex"00");
         sentinel = new VaultSentinelReactive(
             owner,
@@ -50,7 +51,8 @@ contract ReactiveVaultFlowTest is Test {
             BASE_SEPOLIA_CHAIN_ID,
             priceFeed,
             balanceMonitor,
-            CALLBACK_GAS
+            CALLBACK_GAS,
+            bootstrapRules
         );
     }
 
@@ -98,13 +100,13 @@ contract ReactiveVaultFlowTest is Test {
             _decodeExecutePayload(payload);
 
         assertEq(selector, VaultExecution.executeFromReactive.selector);
-        assertEq(payloadRvmId, address(0));
+        assertEq(payloadRvmId, owner);
         assertEq(payloadRuleId, ruleId);
         assertEq(payloadAdapter, address(adapter));
         assertEq(payloadData, adapterData);
 
         vm.prank(callbackProxy);
-        execution.executeFromReactive(address(this), payloadRuleId, payloadAdapter, payloadData);
+        execution.executeFromReactive(payloadRvmId, payloadRuleId, payloadAdapter, payloadData);
 
         assertTrue(adapter.called());
         assertEq(adapter.lastRuleId(), ruleId);

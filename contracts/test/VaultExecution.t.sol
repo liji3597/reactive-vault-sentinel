@@ -59,7 +59,7 @@ contract VaultExecutionTest is Test {
         adapter.setReturnData(expectedReturn);
 
         vm.prank(callbackProxy);
-        execution.executeFromReactive(address(this), RULE_ID, address(adapter), adapterData);
+        execution.executeFromReactive(owner, RULE_ID, address(adapter), adapterData);
 
         assertTrue(adapter.called());
         assertEq(adapter.lastRuleId(), RULE_ID);
@@ -71,7 +71,7 @@ contract VaultExecutionTest is Test {
 
         vm.prank(callbackProxy);
         vm.expectRevert(abi.encodeWithSelector(VaultExecution.AdapterNotAllowed.selector, address(adapter)));
-        execution.executeFromReactive(address(this), RULE_ID, address(adapter), adapterData);
+        execution.executeFromReactive(owner, RULE_ID, address(adapter), adapterData);
     }
 
     function test_ExecuteFromReactiveFromNonProxyReverts() external {
@@ -79,7 +79,7 @@ contract VaultExecutionTest is Test {
 
         vm.prank(attacker);
         vm.expectRevert(bytes("Authorized sender only"));
-        execution.executeFromReactive(address(this), RULE_ID, address(adapter), "");
+        execution.executeFromReactive(owner, RULE_ID, address(adapter), "");
     }
 
     function test_ExecuteFromReactiveWithWrongRvmIdReverts() external {
@@ -90,6 +90,23 @@ contract VaultExecutionTest is Test {
         execution.executeFromReactive(address(0xDEAD), RULE_ID, address(adapter), "");
     }
 
+    function test_ExecuteFromReactiveUsesConfiguredOwnerAsRvmIdWhenOwnerDiffersFromDeployer() external {
+        address configuredOwner = address(0xBEEF);
+        VaultExecution executionWithDifferentOwner = new VaultExecution(configuredOwner, callbackProxy);
+        MockVaultAdapter otherAdapter = new MockVaultAdapter();
+
+        vm.prank(configuredOwner);
+        executionWithDifferentOwner.setAdapterAllowed(address(otherAdapter), true);
+
+        vm.prank(callbackProxy);
+        executionWithDifferentOwner.executeFromReactive(configuredOwner, RULE_ID, address(otherAdapter), "");
+        assertTrue(otherAdapter.called());
+
+        vm.prank(callbackProxy);
+        vm.expectRevert(bytes("Authorized RVM ID only"));
+        executionWithDifferentOwner.executeFromReactive(address(this), RULE_ID, address(otherAdapter), "");
+    }
+
     function test_PauseUnpause() external {
         execution.setAdapterAllowed(address(adapter), true);
         execution.pause();
@@ -97,13 +114,13 @@ contract VaultExecutionTest is Test {
 
         vm.prank(callbackProxy);
         vm.expectRevert(Pausable.EnforcedPause.selector);
-        execution.executeFromReactive(address(this), RULE_ID, address(adapter), "");
+        execution.executeFromReactive(owner, RULE_ID, address(adapter), "");
 
         execution.unpause();
         assertFalse(execution.paused());
 
         vm.prank(callbackProxy);
-        execution.executeFromReactive(address(this), RULE_ID, address(adapter), "");
+        execution.executeFromReactive(owner, RULE_ID, address(adapter), "");
         assertTrue(adapter.called());
     }
 }

@@ -18,7 +18,9 @@ contract VaultExecution is AbstractCallback, Ownable2Step, Pausable, ReentrancyG
     error AdapterNotAllowed(address adapter);
     error InvalidAdapter();
 
-    constructor(address _owner, address _callbackProxy) AbstractCallback(_callbackProxy) Ownable(_owner) {}
+    constructor(address _owner, address _callbackProxy) AbstractCallback(_callbackProxy) Ownable(_owner) {
+        rvm_id = _owner;
+    }
 
     function setAdapterAllowed(address adapter, bool allowed) external onlyOwner {
         if (adapter == address(0)) {

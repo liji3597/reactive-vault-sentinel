@@ -49,32 +49,38 @@ contract DeployLasna is Script {
         uint256 deployerPrivateKey = vm.envUint("REACTIVE_PRIVATE_KEY");
         DeployConfig memory cfg = _loadConfig();
 
+        VaultSentinelReactive.RuleInput[] memory bootstrapRules = new VaultSentinelReactive.RuleInput[](2);
+        bootstrapRules[0] = VaultSentinelReactive.RuleInput({
+            ruleType: VaultSentinelReactive.RuleType.PriceBelow,
+            sourceChainId: SEPOLIA_CHAIN_ID,
+            sourceContract: cfg.priceFeed,
+            topic0: ANSWER_UPDATED_TOPIC_0,
+            adapter: cfg.priceRuleAdapter,
+            callbackGasLimit: cfg.priceRuleGas,
+            threshold: cfg.priceBelowThreshold,
+            extraData: cfg.priceRuleAdapterData
+        });
+        bootstrapRules[1] = VaultSentinelReactive.RuleInput({
+            ruleType: VaultSentinelReactive.RuleType.TransferOutflow,
+            sourceChainId: SEPOLIA_CHAIN_ID,
+            sourceContract: cfg.balanceMonitor,
+            topic0: BALANCE_CHANGED_TOPIC_0,
+            adapter: cfg.drainRuleAdapter,
+            callbackGasLimit: cfg.drainRuleGas,
+            threshold: cfg.balanceMinThreshold,
+            extraData: cfg.drainRuleAdapterData
+        });
+
         vm.startBroadcast(deployerPrivateKey);
 
         VaultSentinelReactive sentinel = new VaultSentinelReactive{value: 0.1 ether}(
-            cfg.owner, cfg.vaultExecution, cfg.destinationChainId, cfg.priceFeed, cfg.balanceMonitor, cfg.defaultCallbackGas
-        );
-
-        sentinel.addRule(
-            VaultSentinelReactive.RuleType.PriceBelow,
-            SEPOLIA_CHAIN_ID,
+            cfg.owner,
+            cfg.vaultExecution,
+            cfg.destinationChainId,
             cfg.priceFeed,
-            ANSWER_UPDATED_TOPIC_0,
-            cfg.priceRuleAdapter,
-            cfg.priceRuleGas,
-            cfg.priceBelowThreshold,
-            cfg.priceRuleAdapterData
-        );
-
-        sentinel.addRule(
-            VaultSentinelReactive.RuleType.TransferOutflow,
-            SEPOLIA_CHAIN_ID,
             cfg.balanceMonitor,
-            BALANCE_CHANGED_TOPIC_0,
-            cfg.drainRuleAdapter,
-            cfg.drainRuleGas,
-            cfg.balanceMinThreshold,
-            cfg.drainRuleAdapterData
+            cfg.defaultCallbackGas,
+            bootstrapRules
         );
 
         vm.stopBroadcast();
