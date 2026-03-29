@@ -1,24 +1,50 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import RuleWizard, { type RuleWizardFormData } from '@/components/rules/RuleWizard';
 import RuleList from '@/components/rules/RuleList';
 import { useRules } from '@/hooks/useRules';
 
 export default function RulesPage() {
   const [showWizard, setShowWizard] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const { mode, rules, createDemoRule, toggleRule, removeRule } = useRules();
 
   const handleComplete = (formData: RuleWizardFormData) => {
     if (mode === 'demo') {
       createDemoRule(formData);
+      setSuccessMessage('Sentinel rule simulated successfully!');
+    } else {
+      setSuccessMessage('Sentinel rule deployment initiated!');
     }
     setShowWizard(false);
   };
 
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
+    <div className="max-w-6xl mx-auto space-y-8 relative">
+      <AnimatePresence>
+        {successMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 px-6 py-3 rounded-2xl bg-emerald-500 text-white font-bold shadow-emerald-glow"
+          >
+            <CheckCircle2 size={20} />
+            {successMessage}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold mb-2">Rule Configurator</h1>

@@ -38,8 +38,10 @@ const config: Config = {
       },
       keyframes: {
         scan: {
-          '0%': { transform: 'translateY(-100%)' },
-          '100%': { transform: 'translateY(100%)' },
+          '0%': { top: '0%', opacity: '0' },
+          '10%': { opacity: '1' },
+          '90%': { opacity: '1' },
+          '100%': { top: '100%', opacity: '0' },
         },
         shimmer: {
           '0%': { transform: 'translateX(-100%)' },
@@ -49,11 +51,16 @@ const config: Config = {
           '0%, 100%': { opacity: '1' },
           '50%': { opacity: '0.6' },
         },
+        'pulse-cyan': {
+          '0%, 100%': { boxShadow: '0 0 15px rgba(34, 211, 238, 0.4)' },
+          '50%': { boxShadow: '0 0 30px rgba(34, 211, 238, 0.8)' },
+        },
       },
       animation: {
         scan: 'scan 4s linear infinite',
         shimmer: 'shimmer 2.5s infinite',
         'pulse-slow': 'pulse-slow 4s ease-in-out infinite',
+        'pulse-cyan': 'pulse-cyan 2s ease-in-out infinite',
       },
     },
   },

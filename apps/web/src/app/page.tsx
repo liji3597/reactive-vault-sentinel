@@ -25,7 +25,7 @@ export default function Dashboard() {
       <section className="relative overflow-hidden rounded-3xl bg-slate-900 border border-slate-800 p-8 md:p-12 shadow-2xl group">
         {/* Animated Background Scan Line */}
         <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="w-full h-[2px] bg-cyan-400/20 absolute top-0 animate-scan shadow-[0_0_20px_#22d3ee] opacity-30" />
+          <div className="w-full h-[2px] bg-cyan-400/30 absolute top-0 animate-scan shadow-[0_0_20px_#22d3ee] opacity-40" />
         </div>
         
         <div className="relative z-10">
@@ -87,9 +87,9 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard label="Total Rules" value={String(rules.length)} icon={Shield} color="cyan" />
+        <StatCard label="Total Rules" value={String(rules.length)} icon={Shield} color="cyan" trend="+2" />
         <StatCard label="Active Status" value={statusLabel} icon={TrendingUp} color={statusColor} pulse={mode !== 'demo'} />
-        <StatCard label="Triggered Today" value={String(triggeredToday)} icon={AlertTriangle} color="amber" />
+        <StatCard label="Triggered Today" value={String(triggeredToday)} icon={AlertTriangle} color="amber" trend="0" />
         <StatCard label="Last Action" value={lastAction} icon={Clock} color="slate" />
       </div>
 

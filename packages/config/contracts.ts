@@ -1,16 +1,16 @@
 export const CONTRACTS = {
   11155111: {
-    mockPriceFeed: "0x0000000000000000000000000000000000000000",
-    balanceMonitor: "0x0000000000000000000000000000000000000000",
+    mockPriceFeed: "0xFac28E7a698668f160C4735005C34Cbe57EbdC02",
+    balanceMonitor: "0x9176d7709cbDcf5200439d8a9E83a1A134fcE570",
   },
   84532: {
-    vaultExecution: "0x0000000000000000000000000000000000000000",
-    basicAdapter: "0x0000000000000000000000000000000000000000",
-    uniswapAdapter: "0x0000000000000000000000000000000000000000",
-    aaveAdapter: "0x0000000000000000000000000000000000000000",
+    vaultExecution: "0xF1212FF8b7A3E79c5fA724045838a4B2E4d798a4",
+    basicAdapter: "0x4CB3Ce4DeCE936Aa93f1ABb95550Ad187f03f14E",
+    uniswapAdapter: "0xD59B75E989aA31a727750A90DD9E5e4044111E9f",
+    aaveAdapter: "0x3e0d5f891A9BAf878366Ebd61DB3FBb7e959F09D",
   },
   5318007: {
-    vaultSentinelReactive: "0x0000000000000000000000000000000000000000",
+    vaultSentinelReactive: "0x0C9EA7c7D65B494409d6523477bfFaf66F618F04",
   },
 } as const;
 
@@ -19,8 +19,3 @@ export const CALLBACK_PROXIES = {
   84532: "0xa6eA49Ed671B8a4dfCDd34E36b7a75Ac79B8A5a6",
 } as const;
 
-export const CHAIN_METADATA = {
-  11155111: { name: "Sepolia", color: "#627EEA" },
-  84532: { name: "Base Sepolia", color: "#0052FF" },
-  5318007: { name: "Reactive Lasna", color: "#22d3ee" },
-} as const;

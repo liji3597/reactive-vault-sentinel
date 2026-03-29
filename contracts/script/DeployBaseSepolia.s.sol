@@ -11,13 +11,24 @@ import "../src/adapters/aave/AaveProtectionAdapter.sol";
 contract DeployBaseSepolia is Script {
     address internal constant BASE_CALLBACK_PROXY = 0xa6eA49Ed671B8a4dfCDd34E36b7a75Ac79B8A5a6;
 
+    function _startBroadcastWithOptionalKey(string memory privateKeyEnv) internal {
+        string memory privateKey = vm.envOr(privateKeyEnv, string("__SET_LOCALLY_ONLY__"));
+        if (
+            bytes(privateKey).length != 0
+                && keccak256(bytes(privateKey)) != keccak256(bytes("__SET_LOCALLY_ONLY__"))
+        ) {
+            vm.startBroadcast(vm.parseUint(privateKey));
+        } else {
+            vm.startBroadcast();
+        }
+    }
+
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("BASE_PRIVATE_KEY");
         address owner = vm.envAddress("OWNER");
         address uniswapRouter = vm.envAddress("UNISWAP_ROUTER");
         address aavePool = vm.envAddress("AAVE_POOL");
 
-        vm.startBroadcast(deployerPrivateKey);
+        _startBroadcastWithOptionalKey("BASE_PRIVATE_KEY");
 
         VaultExecution vaultExecution = new VaultExecution(owner, BASE_CALLBACK_PROXY);
 

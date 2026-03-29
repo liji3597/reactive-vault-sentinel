@@ -95,13 +95,44 @@ function LogEntry({ time, chain, msg, type }: TraceLog) {
     success: 'text-emerald-400',
   };
 
+  const bgColors: Record<TraceLog['type'], string> = {
+    info: 'bg-slate-400/5',
+    warning: 'bg-amber-400/5',
+    process: 'bg-cyan-400/5',
+    success: 'bg-emerald-400/5',
+  };
+
+  const borderColors: Record<TraceLog['type'], string> = {
+    info: 'border-slate-800',
+    warning: 'border-amber-400/10',
+    process: 'border-cyan-400/10',
+    success: 'border-emerald-400/10',
+  };
+
   return (
-    <div className="flex gap-4 group">
-      <span className="text-slate-600 shrink-0">{time}</span>
-      <span className="text-slate-500 w-24 shrink-0">[{chain}]</span>
-      <span className={`${colors[type]} group-hover:translate-x-1 transition-transform`}>
-        {msg}
-      </span>
+    <div className={`flex items-start gap-4 p-3 rounded-lg border group transition-all hover:translate-x-1 ${bgColors[type]} ${borderColors[type]}`}>
+      <span className="text-[10px] text-slate-600 shrink-0 font-mono mt-0.5">{time}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">
+            {chain}
+          </span>
+          <div className={`w-1 h-1 rounded-full ${colors[type].replace('text-', 'bg-')}`} />
+        </div>
+        <div className={`text-xs leading-relaxed ${colors[type]}`}>
+          {msg}
+        </div>
+      </div>
+      <button 
+        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-cyan-400"
+        title="Copy transaction hash"
+        onClick={() => {
+          // In a real app, this would copy to clipboard
+          console.log('Copying TX from chain:', chain);
+        }}
+      >
+        <History size={14} />
+      </button>
     </div>
   );
 }

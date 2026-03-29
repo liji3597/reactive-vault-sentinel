@@ -28,6 +28,21 @@ contracts/broadcast/
 **/.env.development.local
 **/.env.test.local
 **/.env.production.local
+*.env
+*.env.*
+
+# Secrets / keystores
+*.pem
+*.key
+*.keys
+*.secret
+*.secrets
+*.pass
+*.password
+*.keystore
+*.json.keystore
+**/.keystore/
+**/keystore/
 
 # Logs
 *.log

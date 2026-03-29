@@ -162,16 +162,30 @@ export default function RuleWizard({
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm text-slate-500">Threshold Value</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 3500"
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 font-mono"
-                    value={formData.threshold}
-                    onChange={(event) =>
-                      setFormData({ ...formData, threshold: event.target.value })
-                    }
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-slate-500">Threshold Value</label>
+                    <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">
+                      {formData.condition === 'TransferOutflow' ? formData.asset : 'USD'}
+                    </span>
+                  </div>
+                  <div className="relative group">
+                    <input
+                      type="number"
+                      step="any"
+                      placeholder={formData.condition === 'TransferOutflow' ? "e.g. 0.5" : "e.g. 3500"}
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 pr-16 focus:outline-none focus:ring-2 focus:ring-cyan-400/50 font-mono transition-all group-hover:border-slate-600"
+                      value={formData.threshold}
+                      onChange={(event) =>
+                        setFormData({ ...formData, threshold: event.target.value })
+                      }
+                    />
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-500 pointer-events-none">
+                      {formData.condition === 'TransferOutflow' ? formData.asset : 'USD'}
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-slate-600">
+                    Sentinel will trigger if {formData.condition === 'TransferOutflow' ? 'balance' : 'price'} drops below this value.
+                  </p>
                 </div>
               </div>
             </motion.div>

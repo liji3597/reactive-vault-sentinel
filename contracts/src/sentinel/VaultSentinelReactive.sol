@@ -48,6 +48,7 @@ contract VaultSentinelReactive is AbstractPausableReactive {
     address public priceFeed;
     address public balanceMonitor;
     uint64 public defaultCallbackGas;
+    bool public defaultSubscriptionsInitialized;
 
     uint256 public nextRuleId;
     mapping(uint256 => Rule) public rules;
@@ -62,6 +63,7 @@ contract VaultSentinelReactive is AbstractPausableReactive {
     error InvalidRuleId(uint256 ruleId);
     error InvalidGasLimit(uint64 gasLimit);
     error InvalidThreshold(uint256 threshold);
+    error DefaultSubscriptionsAlreadyInitialized();
 
     constructor(
         address _owner,
@@ -99,11 +101,29 @@ contract VaultSentinelReactive is AbstractPausableReactive {
         }
 
         if (!vm) {
-            service.subscribe(SEPOLIA_CHAIN_ID, _priceFeed, ANSWER_UPDATED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE);
+            service.subscribe(
+                SEPOLIA_CHAIN_ID, _priceFeed, ANSWER_UPDATED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
+            );
             service.subscribe(
                 SEPOLIA_CHAIN_ID, _balanceMonitor, BALANCE_CHANGED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
             );
+            defaultSubscriptionsInitialized = true;
         }
+    }
+
+    function initializeDefaultSubscriptions() external rnOnly onlyOwner {
+        if (defaultSubscriptionsInitialized) {
+            revert DefaultSubscriptionsAlreadyInitialized();
+        }
+
+        service.subscribe(
+            SEPOLIA_CHAIN_ID, priceFeed, ANSWER_UPDATED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
+        );
+        service.subscribe(
+            SEPOLIA_CHAIN_ID, balanceMonitor, BALANCE_CHANGED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
+        );
+
+        defaultSubscriptionsInitialized = true;
     }
 
     function addRule(

@@ -251,6 +251,12 @@ contract VaultSentinelReactiveTest is Test {
         bootstrapped.react(log);
     }
 
+    function test_ConstructorInitializesDefaultSubscriptions() external {
+        assertTrue(sentinel.defaultSubscriptionsInitialized());
+        vm.expectRevert(VaultSentinelReactive.DefaultSubscriptionsAlreadyInitialized.selector);
+        sentinel.initializeDefaultSubscriptions();
+    }
+
     function _deployRnSentinel() internal returns (VaultSentinelReactive) {
         VaultSentinelReactive.RuleInput[] memory bootstrapRules = new VaultSentinelReactive.RuleInput[](0);
         return _deployRnSentinelWithRules(bootstrapRules);

@@ -45,8 +45,19 @@ contract DeployLasna is Script {
         cfg.drainRuleAdapterData = vm.envBytes("DRAIN_RULE_ADAPTER_DATA");
     }
 
+    function _startBroadcastWithOptionalKey(string memory privateKeyEnv) internal {
+        string memory privateKey = vm.envOr(privateKeyEnv, string("__SET_LOCALLY_ONLY__"));
+        if (
+            bytes(privateKey).length != 0
+                && keccak256(bytes(privateKey)) != keccak256(bytes("__SET_LOCALLY_ONLY__"))
+        ) {
+            vm.startBroadcast(vm.parseUint(privateKey));
+        } else {
+            vm.startBroadcast();
+        }
+    }
+
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("REACTIVE_PRIVATE_KEY");
         DeployConfig memory cfg = _loadConfig();
 
         VaultSentinelReactive.RuleInput[] memory bootstrapRules = new VaultSentinelReactive.RuleInput[](2);
@@ -71,7 +82,7 @@ contract DeployLasna is Script {
             extraData: cfg.drainRuleAdapterData
         });
 
-        vm.startBroadcast(deployerPrivateKey);
+        _startBroadcastWithOptionalKey("REACTIVE_PRIVATE_KEY");
 
         VaultSentinelReactive sentinel = new VaultSentinelReactive{value: 0.1 ether}(
             cfg.owner,

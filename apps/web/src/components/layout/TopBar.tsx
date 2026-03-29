@@ -1,12 +1,18 @@
 'use client';
 
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Bell, Search, Settings } from 'lucide-react';
+import { useAccount, useConnect, useDisconnect } from 'wagmi';
 import { appMode } from '@/lib/contracts';
 
 export default function TopBar() {
   const statusLabel = appMode === 'demo' ? 'Sentinel Demo Mode' : 'Sentinel Online';
   const dotColor = appMode === 'demo' ? 'bg-amber-400' : 'bg-emerald-400';
+  const { address, isConnected, chain } = useAccount();
+  const { connect, connectors, isPending } = useConnect();
+  const { disconnect } = useDisconnect();
+
+  const injectedConnector = connectors.find((connector) => connector.id === 'injected') ?? connectors[0];
+  const accountLabel = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Connect Wallet';
 
   return (
     <header className="h-20 border-b border-slate-800 bg-slate-950/80 backdrop-blur-md flex items-center justify-between px-8 sticky top-0 z-10">
@@ -32,18 +38,34 @@ export default function TopBar() {
         </div>
 
         <div className="flex items-center gap-4 text-slate-400">
-          <button className="hover:text-white transition-colors relative">
+          <button className="hover:text-white transition-colors relative" aria-label="Notifications">
             <Bell size={20} />
             <span className="absolute top-0 right-0 w-2 h-2 bg-rose-500 rounded-full border border-slate-950" />
           </button>
-          <button className="hover:text-white transition-colors">
+          <button className="hover:text-white transition-colors" aria-label="Settings">
             <Settings size={20} />
           </button>
         </div>
 
         <div className="h-8 w-px bg-slate-800" />
 
-        <ConnectButton showBalance={false} chainStatus="icon" accountStatus="full" />
+        {isConnected ? (
+          <button
+            onClick={() => disconnect()}
+            className="rounded-xl border border-cyan-400/30 bg-cyan-400/10 px-4 py-2 text-sm font-semibold text-cyan-300 transition hover:bg-cyan-400/20"
+          >
+            <span className="mr-2 text-xs text-slate-400">{chain?.name ?? 'Unknown chain'}</span>
+            {accountLabel}
+          </button>
+        ) : (
+          <button
+            onClick={() => injectedConnector && connect({ connector: injectedConnector })}
+            disabled={!injectedConnector || isPending}
+            className="rounded-xl bg-cyan-400 px-4 py-2 text-sm font-semibold text-black transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
+          >
+            {isPending ? 'Connecting...' : 'Connect Wallet'}
+          </button>
+        )}
       </div>
     </header>
   );

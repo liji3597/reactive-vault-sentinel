@@ -1,0 +1,75 @@
+Subject: Step11 callback path still blocked despite source-event match - escalation request
+
+Hi Reactive team,
+
+We are escalating Step11 E2E again with a fresh smoke run and additional on-chain diagnostics. The source-chain trigger is confirmed, but the Reactive-side callback path still does not materialize.
+
+Execution window
+- Project: reactive-vault-sentinel
+- Plan: D:\reactive hackathon\.claude\plan\vault-sentinel.md
+- Latest smoke tx: 0x7b9f8c5ffa726ce899a97d2212114b47e1eb54b6739e09add7d5cb0cd7ce87a2
+
+Latest smoke result
+- Step11 script executed with secure keystore signer mode.
+- Result: FAIL
+- Source event observed on Sepolia: YES
+- Callback observed on Lasna: NO
+- Sentinel debt: 8766700000000000 wei
+- Runtime symptom during the run: curl HTTP 400 from RPC path
+
+Fresh on-chain diagnostics
+1) Sentinel registry/config on Lasna appears valid
+- getRuleIds() => [0, 1]
+- nextRuleId() => 2
+- rules(0) =>
+  - id=0
+  - ruleType=PriceBelow
+  - paused=false
+  - sourceChainId=11155111
+  - sourceContract=0xFac28E7a698668f160C4735005C34Cbe57EbdC02
+  - topic0=AnswerUpdated(int256,uint256,uint256)
+  - adapter=0x4CB3Ce4DeCE936Aa93f1ABb95550Ad187f03f14E
+  - callbackGas=300000
+  - threshold=180000000000
+- rules(1) decoding through cast was inconsistent in this diagnostic pass, but prior evidence shows it exists and is unpaused.
+
+2) Destination execution gateway on Base Sepolia appears configured
+- allowedAdapters(BASIC_TRANSFER_ADAPTER) => true
+- allowedAdapters(UNISWAP_STOP_ORDER_ADAPTER) => true
+- allowedAdapters(AAVE_PROTECTION_ADAPTER) => true
+
+3) Chain heads were live during diagnosis
+- Sepolia block: 10540748
+- Base Sepolia block: 39473450
+- Lasna block: 2906450
+
+4) Source-event prerequisite still satisfied
+- Latest smoke tx: 0x7b9f8c5ffa726ce899a97d2212114b47e1eb54b6739e09add7d5cb0cd7ce87a2
+- Step11 summary confirms: SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
+- Trigger value was set below the configured threshold, matching rule(0) expectations.
+
+5) Reactive-side behavior still missing
+- Latest smoke summary confirms: LASNA_CALLBACK_EVENTS_FOUND=NO
+- Historical evidence already shows repeated empty results for both:
+  - Callback(uint256,address,uint64,bytes)
+  - RuleTriggered(uint256,uint256,uint256)
+- This has remained stable across multiple secure reruns.
+
+Assessment
+- This no longer looks like a frontend, local script, or destination-adapter-whitelist issue.
+- It also does not look like a rule-registration problem: the sentinel has active rules on Lasna, and rule(0) matches the observed Sepolia event shape.
+- Current strongest fault domain remains Reactive runtime/indexing/match/dispatch/delivery on the Lasna side, or RPC/indexer visibility degradation for those events.
+
+Specific requests
+1) Verify ingest -> match -> dispatch -> vmOnly react(LogRecord) for contract 0x0C9EA7c7D65B494409d6523477bfFaf66F618F04 around the latest tx window.
+2) Confirm whether the Sepolia event for tx 0x7b9f8c5ffa726ce899a97d2212114b47e1eb54b6739e09add7d5cb0cd7ce87a2 was ingested and matched.
+3) If dropped, provide the drop reason (chain_id / contract / topic_0 / decode / gas/debt / queue / infra incident).
+4) Confirm current Lasna RPC / indexer health for eth_getLogs and callback visibility.
+5) Clarify why paused()(bool) has historically reverted on this deployment in prior diagnostics.
+
+Artifacts
+- D:\reactive hackathon\reactive-vault-sentinel\scripts\e2e\step11-incident-evidence.txt
+- D:\reactive hackathon\reactive-vault-sentinel\scripts\e2e\reactive-escalation-template.txt
+- Latest smoke tx: 0x7b9f8c5ffa726ce899a97d2212114b47e1eb54b6739e09add7d5cb0cd7ce87a2
+
+We can provide more tx-level traces immediately if needed.

@@ -7,11 +7,22 @@ import "../src/mocks/MockPriceFeed.sol";
 import "../src/monitors/BalanceMonitor.sol";
 
 contract DeploySepolia is Script {
+    function _startBroadcastWithOptionalKey(string memory privateKeyEnv) internal {
+        string memory privateKey = vm.envOr(privateKeyEnv, string("__SET_LOCALLY_ONLY__"));
+        if (
+            bytes(privateKey).length != 0
+                && keccak256(bytes(privateKey)) != keccak256(bytes("__SET_LOCALLY_ONLY__"))
+        ) {
+            vm.startBroadcast(vm.parseUint(privateKey));
+        } else {
+            vm.startBroadcast();
+        }
+    }
+
     function run() external {
-        uint256 deployerPrivateKey = vm.envUint("SEPOLIA_PRIVATE_KEY");
         address owner = vm.envAddress("OWNER");
 
-        vm.startBroadcast(deployerPrivateKey);
+        _startBroadcastWithOptionalKey("SEPOLIA_PRIVATE_KEY");
         MockPriceFeed mockPriceFeed = new MockPriceFeed(owner, 2000e8, 8);
         BalanceMonitor balanceMonitor = new BalanceMonitor(owner);
         vm.stopBroadcast();

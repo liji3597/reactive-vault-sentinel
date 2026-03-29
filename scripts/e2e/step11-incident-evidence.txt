@@ -19,11 +19,118 @@ Observed Errors
 
 Current Script Hardening Status
 - Strict env parser enabled (no `source` execution).
-- Private key argv leak mitigated (ETH_PRIVATE_KEY scoped invocation).
+- Private-key argv signer path removed from smoke script; only keystore/account signer mode is allowed.
 - Callback polling gated by observed source event.
 - Timeout and poll interval positive-integer validation enabled.
 - Unused sentinel log polling removed.
 
 Current Assessment
-- LIKELY_REACTIVE_INFRA_ISSUE remains the dominant diagnosis.
-- Code path is converged; external Reactive RPC/indexing/routing health is the blocker.
+- LIKELY_REACTIVE_INFRA_ISSUE remains the dominant diagnosis based on prior source-event/Lasna-miss evidence.
+- Signer security hardening is now enforced; current blocker for reruns is missing keystore/account signer configuration.
+
+---
+Date: 2026-03-26 23:18:09
+Secure signer rerun (keystore mode enabled): 3 rounds
+Signer mode
+- SEPOLIA_KEYSTORE=D:/reactive hackathon/reactive-vault-sentinel/contracts/.keystore/sepolia-smoke
+- SEPOLIA_KEYSTORE_PASSWORD_FILE=D:/reactive hackathon/reactive-vault-sentinel/contracts/.sepolia-keystore.pass
+- Private-key argv mode disabled in smoke.sh
+
+ROUND=1 EXIT=1 LOG=/c/Users/asd10/AppData/Local/Temp/step11-smoke-secure-1.log
+- TX_HASH=0xd224bf2023beb3e0ac78d04108cdb002e22bab6dad0ea117df05618d6c445b17
+- SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
+- LASNA_CALLBACK_EVENTS_FOUND=NO
+- SENTINEL_DEBT_DEC=8766700000000000
+- Errors include curl HTTP 400 and schannel TLS handshake failures
+
+ROUND=2 EXIT=1 LOG=/c/Users/asd10/AppData/Local/Temp/step11-smoke-secure-2.log
+- TX_HASH=0x8edab408634c6ab207a8053dc3751dc9092fa283293a6980214b7d80bb65ee1a
+- SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
+- LASNA_CALLBACK_EVENTS_FOUND=NO
+- SENTINEL_DEBT_DEC=8766700000000000
+- Errors include curl HTTP 400 and schannel TLS handshake failures
+
+ROUND=3 EXIT=1 LOG=/c/Users/asd10/AppData/Local/Temp/step11-smoke-secure-3.log
+- TX_HASH=0xab3e66f01da8495d9c87ae9282c3b647b4bfd628fdb2434223ed310acf2c9c73
+- SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
+- LASNA_CALLBACK_EVENTS_FOUND=NO
+- SENTINEL_DEBT_DEC=8766700000000000
+- Errors include curl HTTP 400
+
+Assessment update
+- Security hardening did not change core failure signature.
+- With secure signer mode and confirmed source events, Reactive-side callback path remains the likely fault domain.
+
+---
+Date: 2026-03-26 21:18:19
+Rerun with Grok-selected RPC endpoints
+SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+BASE_SEPOLIA_RPC_URL=https://base-sepolia-rpc.publicnode.com
+REACTIVE_RPC_URL=https://lasna-rpc.rnk.dev/
+Result: smoke:e2e failed with curl HTTP 400
+
+---
+Date: 2026-03-26 22:03:58
+Safe-rerun after signer branch correction: 3 rounds
+ROUND=1 EXIT=1 LOG=/c/Users/asd10/AppData/Local/Temp/step11-smoke-rerun-safe-1.log
+- TX_HASH=0xdc93263bf8f41494c9f3b4c8fb1f1b39202a6c947b1b260f674e1ff29636f428
+- SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
+- LASNA_CALLBACK_EVENTS_FOUND=NO
+- SENTINEL_DEBT_DEC=0
+- Signature=LIKELY_REACTIVE_INFRA_ISSUE
+
+ROUND=2 EXIT=1 LOG=/c/Users/asd10/AppData/Local/Temp/step11-smoke-rerun-safe-2.log
+- TX_HASH=0xff3776efa5e75269bdf5e5af456696d2a83ff7327e69b7f396e1bf1fdf76202d
+- SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
+- LASNA_CALLBACK_EVENTS_FOUND=NO
+- SENTINEL_DEBT_DEC=8766700000000000
+- Note=Observed curl TLS schannel handshake failure in this round
+
+ROUND=3 EXIT=1 LOG=/c/Users/asd10/AppData/Local/Temp/step11-smoke-rerun-safe-3.log
+- TX_HASH=0xfb3e087a4adb2b7abbdbb05cff117cf658bc46d3ad185258b05dc3ad80a1ab6b
+- SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
+- LASNA_CALLBACK_EVENTS_FOUND=NO
+- SENTINEL_DEBT_DEC=0
+- Signature=LIKELY_REACTIVE_INFRA_ISSUE
+
+---
+Date: 2026-03-26 22:08:52
+On-chain sentinel diagnostics (Lasna)
+RPC=https://lasna-rpc.rnk.dev/
+SENTINEL=0x0C9EA7c7D65B494409d6523477bfFaf66F618F04
+
+Read results
+- getRuleIds()(uint256[]) => [0, 1]
+- nextRuleId()(uint256) => 2
+- rules(0) => paused=false, sourceChainId=11155111, sourceContract=0xFac28E7a698668f160C4735005C34Cbe57EbdC02, adapter=0x4CB3Ce4DeCE936Aa93f1ABb95550Ad187f03f14E, callbackGas=300000, threshold=180000000000
+- rules(1) => paused=false, sourceChainId=11155111, sourceContract=0x9176d7709cbDcf5200439d8a9E83a1A134fcE570, adapter=0x4CB3Ce4DeCE936Aa93f1ABb95550Ad187f03f14E, callbackGas=300000, threshold=1000000000000000000
+- paused()(bool) => revert (error code 3, data 0x)
+- debt(system.contract) => 0x000000000000000000000000000000000000000000000000001f2544675a3800
+
+Event queries
+- eth_getLogs Callback topic from 0x2be000..latest => []
+- eth_getLogs RuleTriggered topic from 0x2be000..latest => []
+
+
+---
+Date: 2026-03-26 22:19:37
+Sepolia source-event match verification (for latest safe rerun txs)
+SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+PRICE_FEED=0xFac28E7a698668f160C4735005C34Cbe57EbdC02
+
+Rule correlation baseline
+- rules(0).sourceContract = 0xFac28E7a698668f160C4735005C34Cbe57EbdC02
+- rules(0).sourceChainId = 11155111
+- rules(0).threshold = 180000000000
+- AnswerUpdated topic0 (hex) = 0x0559884fd3a460db3073b7fc896cc77986f16e378210ded43186175bf646fc5f
+- AnswerUpdated topic0 (dec) = 2419754421309073239616474162343765982017095847004800434883464120229108841567
+
+Receipt checks
+- TX=0xdc93263bf8f41494c9f3b4c8fb1f1b39202a6c947b1b260f674e1ff29636f428 status=0x1 to=PRICE_FEED logs[0].topic0=AnswerUpdated, logs[0].topic1(dec)=150000000000 (< threshold)
+- TX=0xff3776efa5e75269bdf5e5af456696d2a83ff7327e69b7f396e1bf1fdf76202d status=0x1 to=PRICE_FEED logs[0].topic0=AnswerUpdated, logs[0].topic1(dec)=150000000000 (< threshold)
+- TX=0xfb3e087a4adb2b7abbdbb05cff117cf658bc46d3ad185258b05dc3ad80a1ab6b status=0x1 to=PRICE_FEED logs[0].topic0=AnswerUpdated, logs[0].topic1(dec)=150000000000 (< threshold)
+
+Assessment update
+- Source-chain trigger prerequisites are satisfied and match rule(0) exactly.
+- Yet Lasna still shows no Callback and no RuleTriggered logs in recent range.
+- This further strengthens Reactive-side runtime/indexing/delivery-path diagnosis.

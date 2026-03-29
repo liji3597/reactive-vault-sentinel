@@ -1,35 +1,57 @@
-Subject: Step11 smoke still blocked after script hardening — likely Reactive infra issue
+Subject: Step11 callback path still blocked despite source-event match - escalation request
 
 Hi Reactive team,
 
-We re-ran our Step11 E2E smoke flow (3 consecutive rounds) on 2026-03-26 after hardening the client-side smoke script.
+We are escalating Step11 E2E because source-chain trigger conditions are confirmed, but Reactive-side callback path remains missing.
 
-What was hardened:
-- Replaced env `source` with strict KEY=VALUE parser.
-- Mitigated private-key CLI leakage by using env-scoped signer flow.
-- Gated callback polling until source event is observed.
-- Added validation for timeout/poll interval inputs.
-- Removed unused polling noise.
+Execution window:
+- Date: 2026-03-26
+- Project: reactive-vault-sentinel
+- Plan: D:\reactive hackathon\.claude\plan\vault-sentinel.md
 
-Run results:
-- 3/3 rounds failed (exit code 1).
-- Logs repeatedly show RPC-layer failures (HTTP 400).
-- Intermittent TLS handshake instability observed in adjacent runs.
+Current behavior (latest secure signer reruns):
+- 3/3 smoke rounds failed with exit code 1.
+- All rounds observed source event success on Sepolia (`SEPOLIA_ANSWER_UPDATED_OBSERVED=YES`).
+- All rounds observed no callback on Lasna (`LASNA_CALLBACK_EVENTS_FOUND=NO`).
+- Recurrent infra symptoms: `curl (22) HTTP 400`; intermittent `curl (35) schannel TLS handshake failure`.
 
-Evidence:
-- C:\Users\asd10\AppData\Local\Temp\step11-smoke-summary.txt
-- C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-1.log
-- C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-2.log
-- C:\Users\asd10\AppData\Local\Temp\step11-smoke-round-3.log
-- D:\reactive hackathon\reactive-vault-sentinel\scripts\e2e\step11-incident-evidence.txt
+Strong evidence collected:
+1) Rule registry/config appears valid on Lasna
+- `getRuleIds() => [0,1]`
+- `nextRuleId() => 2`
+- `rules(0).paused=false`, `rules(1).paused=false`
+- `rules(0)` bound to Sepolia price feed + `AnswerUpdated` topic + threshold `180000000000`
+
+2) Source-event prerequisites are satisfied (receipt-level)
+- TX `0xd224bf2023beb3e0ac78d04108cdb002e22bab6dad0ea117df05618d6c445b17`: status=1, `to=MockPriceFeed`, topic0=`AnswerUpdated`, topic1(value)=`150000000000` (< threshold)
+- TX `0x8edab408634c6ab207a8053dc3751dc9092fa283293a6980214b7d80bb65ee1a`: same pattern
+- TX `0xab3e66f01da8495d9c87ae9282c3b647b4bfd628fdb2434223ed310acf2c9c73`: same pattern
+
+3) Reactive-side events are absent in recent range
+- `eth_getLogs` for `Callback(uint256,address,uint64,bytes)` on sentinel: `[]`
+- `eth_getLogs` for `RuleTriggered(uint256,uint256,uint256)` on sentinel: `[]`
+
+4) Additional signal
+- `paused()(bool)` on sentinel currently reverts (error code 3, data `0x`) in our Lasna reads.
+- Security hardening update: smoke signer path now disables private-key argv mode; reruns now require keystore/account signer configuration.
 
 Assessment:
-- This currently looks infrastructure-side (RPC/indexing/routing/callback dispatch), not deterministic application logic regression.
-- It aligns with the prior outage pattern observed around 2026-03-23.
+- This no longer looks like client-side trigger mismatch.
+- Most likely fault domain is Reactive runtime/indexing/routing/delivery path for this contract/time window.
 
-Please help verify:
-1) Lasna RPC health and request routing for our test window.
-2) Event indexing and callback dispatch path for callback topic.
-3) Any ongoing degraded-service or capacity incidents affecting callback visibility.
+Request for Reactive team:
+1) Verify ingest -> match -> dispatch -> vmOnly `react(LogRecord)` pipeline for this contract/time window.
+2) Check if matching was attempted and, if dropped, provide drop reason (chain_id / contract / topic_0 / decode / gas/debt / queue).
+3) Confirm current Lasna RPC health and any degraded-service incidents affecting callback visibility.
+4) Confirm behavior for `paused()(bool)` revert on this deployment.
 
-We can provide additional tx-level traces immediately if needed.
+Artifacts:
+- D:\reactive hackathon\reactive-vault-sentinel\scripts\e2e\step11-incident-evidence.txt
+- /c/Users/asd10/AppData/Local/Temp/step11-smoke-rerun-safe-1.log
+- /c/Users/asd10/AppData/Local/Temp/step11-smoke-rerun-safe-2.log
+- /c/Users/asd10/AppData/Local/Temp/step11-smoke-rerun-safe-3.log
+- /c/Users/asd10/AppData/Local/Temp/step11-smoke-secure-1.log
+- /c/Users/asd10/AppData/Local/Temp/step11-smoke-secure-2.log
+- /c/Users/asd10/AppData/Local/Temp/step11-smoke-secure-3.log
+
+We can provide more tx-level traces immediately if needed.

@@ -34,6 +34,7 @@ export default function Sidebar() {
         <button 
           onClick={() => setCollapsed(!collapsed)}
           className="p-1 hover:bg-slate-800 rounded transition-colors"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <Menu size={20} /> : <X size={20} />}
         </button>

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Activity, ExternalLink, Power, Settings } from 'lucide-react';
+import { Activity, ExternalLink, Power, Settings, ShieldOff } from 'lucide-react';
 import { DEFAULT_DEMO_RULES, type DemoRule } from '@/lib/demoData';
 import type { AppMode } from '@/lib/contracts';
 
@@ -29,82 +29,98 @@ export default function RuleList({
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800">
-          {rules.map((rule) => (
-            <motion.tr
-              key={rule.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="hover:bg-slate-900/50 transition-colors group"
-            >
-              <td className="py-6 px-6 align-top">
-                <div className="flex items-center gap-3 min-w-0">
-                  <div
-                    className={`w-2 h-2 rounded-full ${
-                      rule.status === 'Active'
-                        ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
-                        : 'bg-slate-600'
-                    }`}
-                  />
-                  <div className="min-w-0">
-                    <div className="font-bold text-white truncate">{rule.name}</div>
-                    <div className="text-[10px] text-slate-500 font-mono">ID: SENTINEL-{rule.id}</div>
+          {rules.length === 0 ? (
+            <tr>
+              <td colSpan={5} className="py-12 px-6 text-center">
+                <div className="flex flex-col items-center justify-center gap-4 text-slate-500">
+                  <div className="w-16 h-16 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center">
+                    <ShieldOff size={32} className="text-slate-700" />
+                  </div>
+                  <div className="max-w-xs mx-auto">
+                    <p className="font-bold text-slate-300 mb-1 uppercase tracking-widest text-xs">No active sentinels</p>
+                    <p className="text-sm">Configure your first rule using the &quot;New Rule&quot; wizard above or a template below.</p>
                   </div>
                 </div>
               </td>
-              <td className="py-6 px-6 align-top">
-                <div>
-                  <div className="text-sm font-semibold">{rule.type}</div>
-                  <div className="text-xs text-slate-400 font-mono">{rule.threshold}</div>
-                </div>
-              </td>
-              <td className="py-6 px-6 align-top">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">
-                    {rule.chain}
-                  </span>
-                  <ChevronRight size={12} className="text-slate-600" />
-                  <span className="text-xs px-2 py-0.5 rounded bg-cyan-400/10 border border-cyan-400/20 text-cyan-400">
-                    {rule.target}
-                  </span>
-                </div>
-              </td>
-              <td className="py-6 px-6 align-top">
-                <div className="flex items-center gap-2 text-xs">
-                  <Activity
-                    size={14}
-                    className={rule.status === 'Active' ? 'text-emerald-400' : 'text-slate-600'}
-                  />
-                  <span className={rule.status === 'Active' ? 'text-emerald-400' : 'text-slate-500'}>
-                    {rule.health}
-                  </span>
-                </div>
-              </td>
-              <td className="py-6 px-6 align-top">
-                <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  <button className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-all">
-                    <Settings size={18} />
-                  </button>
-                  <button
-                    onClick={() => onToggleRule?.(rule.id)}
-                    className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-emerald-400 transition-all"
-                  >
-                    <Power size={18} />
-                  </button>
-                  <button className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-cyan-400 transition-all">
-                    <ExternalLink size={18} />
-                  </button>
-                  {mode === 'demo' && (
-                    <button
-                      onClick={() => onRemoveRule?.(rule.id)}
-                      className="text-[11px] text-rose-400 hover:underline"
-                    >
-                      Remove
+            </tr>
+          ) : (
+            rules.map((rule) => (
+              <motion.tr
+                key={rule.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="hover:bg-slate-900/50 transition-colors group"
+              >
+                <td className="py-6 px-6 align-top">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        rule.status === 'Active'
+                          ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
+                          : 'bg-slate-600'
+                      }`}
+                    />
+                    <div className="min-w-0">
+                      <div className="font-bold text-white truncate">{rule.name}</div>
+                      <div className="text-[10px] text-slate-500 font-mono">ID: SENTINEL-{rule.id}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="py-6 px-6 align-top">
+                  <div>
+                    <div className="text-sm font-semibold">{rule.type}</div>
+                    <div className="text-xs text-slate-400 font-mono">{rule.threshold}</div>
+                  </div>
+                </td>
+                <td className="py-6 px-6 align-top">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs px-2 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">
+                      {rule.chain}
+                    </span>
+                    <ChevronRight size={12} className="text-slate-600" />
+                    <span className="text-xs px-2 py-0.5 rounded bg-cyan-400/10 border border-cyan-400/20 text-cyan-400">
+                      {rule.target}
+                    </span>
+                  </div>
+                </td>
+                <td className="py-6 px-6 align-top">
+                  <div className="flex items-center gap-2 text-xs">
+                    <Activity
+                      size={14}
+                      className={rule.status === 'Active' ? 'text-emerald-400' : 'text-slate-600'}
+                    />
+                    <span className={rule.status === 'Active' ? 'text-emerald-400' : 'text-slate-500'}>
+                      {rule.health}
+                    </span>
+                  </div>
+                </td>
+                <td className="py-6 px-6 align-top">
+                  <div className="flex items-center justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                    <button className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-all">
+                      <Settings size={18} />
                     </button>
-                  )}
-                </div>
-              </td>
-            </motion.tr>
-          ))}
+                    <button
+                      onClick={() => onToggleRule?.(rule.id)}
+                      className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-emerald-400 transition-all"
+                    >
+                      <Power size={18} />
+                    </button>
+                    <button className="p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-cyan-400 transition-all">
+                      <ExternalLink size={18} />
+                    </button>
+                    {mode === 'demo' && (
+                      <button
+                        onClick={() => onRemoveRule?.(rule.id)}
+                        className="text-[11px] text-rose-400 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </motion.tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

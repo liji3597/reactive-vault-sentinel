@@ -32,7 +32,7 @@ export const reactiveLasna = {
     default: { http: ['https://lasna-rpc.rnk.dev/'] },
   },
   blockExplorers: {
-    default: { name: 'Reactscan', url: 'https://kopli.reactscan.net' },
+    default: { name: 'Reactscan', url: 'https://lasna.reactscan.net' },
   },
 } as const satisfies Chain
 

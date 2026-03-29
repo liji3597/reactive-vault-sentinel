@@ -38,7 +38,7 @@ export default function Card({
     >
       {withScan && (
         <div className="absolute inset-0 pointer-events-none z-0">
-          <div className="w-full h-px bg-cyan-400/20 absolute top-0 animate-scan shadow-[0_0_10px_rgba(34,211,238,0.5)]" />
+          <div className="w-full h-[2px] bg-cyan-400/30 absolute top-0 animate-scan shadow-[0_0_15px_#22d3ee] opacity-50" />
         </div>
       )}
       

@@ -125,7 +125,6 @@ require_var MOCK_PRICE_FEED
 require_var VAULT_SENTINEL_REACTIVE
 
 SEPOLIA_SIGNER_ARGS=()
-USE_PRIVATE_KEY_SIGNER=0
 if [ -n "${SEPOLIA_KEYSTORE:-}" ]; then
   SEPOLIA_SIGNER_ARGS+=(--keystore "${SEPOLIA_KEYSTORE}")
   if [ -n "${SEPOLIA_KEYSTORE_PASSWORD_FILE:-}" ]; then
@@ -136,10 +135,8 @@ elif [ -n "${SEPOLIA_KEYSTORE_ACCOUNT:-}" ]; then
   if [ -n "${SEPOLIA_KEYSTORE_PASSWORD_FILE:-}" ]; then
     SEPOLIA_SIGNER_ARGS+=(--password-file "${SEPOLIA_KEYSTORE_PASSWORD_FILE}")
   fi
-elif [ -n "${SEPOLIA_PRIVATE_KEY:-}" ]; then
-  USE_PRIVATE_KEY_SIGNER=1
 else
-  echo "Missing signer config: set SEPOLIA_KEYSTORE or SEPOLIA_KEYSTORE_ACCOUNT (preferred), or SEPOLIA_PRIVATE_KEY"
+  echo "Missing signer config: set SEPOLIA_KEYSTORE or SEPOLIA_KEYSTORE_ACCOUNT. Private-key argv mode is disabled for security."
   exit 1
 fi
 
@@ -185,11 +182,7 @@ LASNA_FROM_BLOCK="$(to_lower "${LASNA_FROM_BLOCK}")"
 callback_baseline_json="$(json_rpc "${REACTIVE_RPC_URL}" "eth_getLogs" "[{\"fromBlock\":\"${LASNA_FROM_BLOCK}\",\"toBlock\":\"latest\",\"address\":\"${VAULT_SENTINEL_REACTIVE}\",\"topics\":[\"${CALLBACK_TOPIC0}\"]}]" || true)"
 callback_baseline_compact="$(compact_json "${callback_baseline_json:-}" | tr '[:upper:]' '[:lower:]')"
 
-if [ "${USE_PRIVATE_KEY_SIGNER}" -eq 1 ]; then
-  send_output="$(ETH_PRIVATE_KEY="${SEPOLIA_PRIVATE_KEY}" "${CAST_BIN}" send "${MOCK_PRICE_FEED}" "setAnswer(int256)" "${SMOKE_ANSWER_VALUE}" --rpc-url "${SEPOLIA_RPC_URL}" --async 2>&1)"
-else
-  send_output="$("${CAST_BIN}" send "${MOCK_PRICE_FEED}" "setAnswer(int256)" "${SMOKE_ANSWER_VALUE}" --rpc-url "${SEPOLIA_RPC_URL}" "${SEPOLIA_SIGNER_ARGS[@]}" --async 2>&1)"
-fi
+send_output="$("${CAST_BIN}" send "${MOCK_PRICE_FEED}" "setAnswer(int256)" "${SMOKE_ANSWER_VALUE}" --rpc-url "${SEPOLIA_RPC_URL}" "${SEPOLIA_SIGNER_ARGS[@]}" --async 2>&1)"
 TX_HASH="$(printf '%s\n' "${send_output}" | grep -Eoi '0x[0-9a-fA-F]{64}' | head -n1 || true)"
 if [ -z "${TX_HASH}" ]; then
   echo "Failed to capture tx hash from cast send output"

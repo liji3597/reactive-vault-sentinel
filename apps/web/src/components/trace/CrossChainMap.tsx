@@ -5,8 +5,8 @@ import ConnectingLine from './ConnectingLine';
 
 export default function CrossChainMap({ activePhase }: { activePhase: 1 | 2 | 3 }) {
   return (
-    <div className="relative h-full flex items-center justify-between gap-4 z-10 px-4">
-      <div className="flex-1 flex flex-col items-center">
+    <div className="relative h-full flex flex-col md:flex-row items-center justify-between gap-8 md:gap-4 z-10 px-4 py-8 md:py-0">
+      <div className="w-full md:flex-1 flex flex-col items-center">
         <h3 className="text-slate-500 font-mono text-sm mb-6 uppercase tracking-widest">Source Chain</h3>
         <PhaseCard
           phase={1}
@@ -18,11 +18,11 @@ export default function CrossChainMap({ activePhase }: { activePhase: 1 | 2 | 3 
         />
       </div>
 
-      <div className="w-32 relative flex items-center justify-center">
-        <ConnectingLine active={activePhase === 2} />
+      <div className="h-16 w-1 md:h-1 md:w-32 relative flex items-center justify-center">
+        <ConnectingLine active={activePhase === 2} orientation={typeof window !== 'undefined' && window.innerWidth < 768 ? 'vertical' : 'horizontal'} />
       </div>
 
-      <div className="flex-1 flex flex-col items-center">
+      <div className="w-full md:flex-1 flex flex-col items-center">
         <h3 className="text-cyan-400 font-mono text-sm mb-6 uppercase tracking-widest">Reactive VM</h3>
         <PhaseCard
           phase={2}
@@ -34,11 +34,11 @@ export default function CrossChainMap({ activePhase }: { activePhase: 1 | 2 | 3 
         />
       </div>
 
-      <div className="w-32 relative flex items-center justify-center">
-        <ConnectingLine active={activePhase === 3} />
+      <div className="h-16 w-1 md:h-1 md:w-32 relative flex items-center justify-center">
+        <ConnectingLine active={activePhase === 3} orientation={typeof window !== 'undefined' && window.innerWidth < 768 ? 'vertical' : 'horizontal'} />
       </div>
 
-      <div className="flex-1 flex flex-col items-center">
+      <div className="w-full md:flex-1 flex flex-col items-center">
         <h3 className="text-slate-500 font-mono text-sm mb-6 uppercase tracking-widest">Destination Chain</h3>
         <PhaseCard
           phase={3}
