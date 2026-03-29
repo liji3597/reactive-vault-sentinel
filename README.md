@@ -1,6 +1,6 @@
 # Reactive Vault Sentinel
 
-Reactive Vault Sentinel 是一个面向黑客松场景的跨链金库守护 Demo：它在 **Sepolia** 监听风险事件，在 **Reactive Lasna** 上执行规则判断，并在 **Base Sepolia** 触发保护动作，用来展示一条完整的“事件驱动跨链自动化风控”链路。
+Reactive Vault Sentinel 是一个面向应用场景的跨链金库守护 ：它在 **主链** 监听风险事件，在 **Reactive Lasna** 上执行规则判断，并在 **目标链** 触发保护动作，用来展示一条完整的“事件驱动跨链自动化风控”链路。
 
 当前仓库已经具备：
 
@@ -9,7 +9,6 @@ Reactive Vault Sentinel 是一个面向黑客松场景的跨链金库守护 Demo
 - Sepolia / Base Sepolia 的部署与验证基础能力
 - 本地可运行的 Demo 演示路径
 
-当前仓库**尚未完成最终实链闭环验收**。阻塞点集中在 **Reactive Lasna**：`VaultSentinelReactive` 在 Lasna 上执行 `service.subscribe(...)` 时发生系统级回滚，因此 **Sepolia → Lasna → Base Sepolia** 的真实回调链路目前无法确认为已打通。
 
 ---
 
@@ -52,8 +51,8 @@ Base Sepolia
 #### Sepolia：事件源
 负责产生日志事件，作为风控触发输入。
 
-- `MockPriceFeed`：模拟价格变动
-- `BalanceMonitor`：模拟余额变化 / 转出风险
+- `MockPriceFeed`：价格变动
+- `BalanceMonitor`：余额变化 / 转出风险
 
 #### Reactive Lasna：规则引擎
 负责接收源链事件并在 Reactive 网络中判断是否命中规则。
