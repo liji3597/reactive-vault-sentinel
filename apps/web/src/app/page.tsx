@@ -11,7 +11,7 @@ import { useRules } from '@/hooks/useRules';
 import { useReactiveTrace } from '@/hooks/useReactiveTrace';
 
 export default function Dashboard() {
-  const { mode, rules } = useRules();
+  const { mode, rules, toggleRule, removeRule } = useRules();
   const { events } = useReactiveTrace();
 
   const activeRules = rules.filter((rule) => rule.status === 'Active').length;
@@ -113,7 +113,11 @@ export default function Dashboard() {
                 Configure
               </Link>
             </div>
-            <RulesSummary rules={rules} />
+            <RulesSummary 
+              rules={rules} 
+              onToggleRule={toggleRule}
+              onRemoveRule={removeRule}
+            />
           </section>
         </div>
 

@@ -14,12 +14,32 @@ contract VaultExecution is AbstractCallback, Ownable2Step, Pausable, ReentrancyG
     event AdapterAllowed(address indexed adapter, bool allowed);
     event ExecutionSucceeded(uint256 indexed ruleId, address indexed adapter, bytes returnData);
     event ExecutionFailed(uint256 indexed ruleId, address indexed adapter, bytes reason);
+    event ExpectedRvmIdUpdated(address indexed expectedRvmId);
 
     error AdapterNotAllowed(address adapter);
     error InvalidAdapter();
+    error InvalidExpectedRvmId();
+    error ExpectedRvmIdNotConfigured();
 
-    constructor(address _owner, address _callbackProxy) AbstractCallback(_callbackProxy) Ownable(_owner) {
-        rvm_id = _owner;
+    constructor(address _owner, address _callbackProxy, address _expectedRvmId) AbstractCallback(_callbackProxy) Ownable(_owner) {
+        rvm_id = _expectedRvmId;
+    }
+
+    modifier expectedRvmIdConfigured() {
+        if (rvm_id == address(0)) {
+            revert ExpectedRvmIdNotConfigured();
+        }
+        _;
+    }
+
+    // expectedRvmId is the Reactive deployer wallet / RVM ID, not the VaultSentinelReactive contract address.
+    function setExpectedRvmId(address expectedRvmId) external onlyOwner {
+        if (expectedRvmId == address(0)) {
+            revert InvalidExpectedRvmId();
+        }
+
+        rvm_id = expectedRvmId;
+        emit ExpectedRvmIdUpdated(expectedRvmId);
     }
 
     function setAdapterAllowed(address adapter, bool allowed) external onlyOwner {
@@ -33,6 +53,7 @@ contract VaultExecution is AbstractCallback, Ownable2Step, Pausable, ReentrancyG
     function executeFromReactive(address rvmId, uint256 ruleId, address adapter, bytes calldata adapterData)
         external
         authorizedSenderOnly
+        expectedRvmIdConfigured
         rvmIdOnly(rvmId)
         whenNotPaused
         nonReentrant

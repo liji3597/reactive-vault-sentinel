@@ -44,6 +44,7 @@ contract VaultSentinelReactive is AbstractPausableReactive {
         uint256(keccak256("BalanceChanged(address,address,uint256,uint256)"));
 
     address public vaultExecution;
+    address public immutable expectedRvmId;
     uint256 public destinationChainId;
     address public priceFeed;
     address public balanceMonitor;
@@ -58,28 +59,34 @@ contract VaultSentinelReactive is AbstractPausableReactive {
     event RulePaused(uint256 indexed ruleId);
     event RuleResumed(uint256 indexed ruleId);
     event RuleTriggered(uint256 indexed ruleId, uint256 txHash, uint256 logIndex);
+    event DefaultSubscriptionsInitialized(address indexed priceFeed, address indexed balanceMonitor);
 
     error InvalidAddress();
     error InvalidRuleId(uint256 ruleId);
     error InvalidGasLimit(uint64 gasLimit);
     error InvalidThreshold(uint256 threshold);
-    error DefaultSubscriptionsAlreadyInitialized();
 
     constructor(
         address _owner,
         address _vaultExecution,
+        address _expectedRvmId,
         uint256 _destinationChainId,
         address _priceFeed,
         address _balanceMonitor,
         uint64 _defaultCallbackGas,
-        RuleInput[] memory bootstrapRules
+        RuleInput[] memory bootstrapRules,
+        bool _autoInitializeDefaultSubscriptions
     ) payable {
-        if (_owner == address(0) || _vaultExecution == address(0) || _priceFeed == address(0) || _balanceMonitor == address(0)) {
+        if (
+            _owner == address(0) || _vaultExecution == address(0) || _expectedRvmId == address(0)
+                || _priceFeed == address(0) || _balanceMonitor == address(0)
+        ) {
             revert InvalidAddress();
         }
 
         owner = _owner;
         vaultExecution = _vaultExecution;
+        expectedRvmId = _expectedRvmId;
         destinationChainId = _destinationChainId;
         priceFeed = _priceFeed;
         balanceMonitor = _balanceMonitor;
@@ -100,22 +107,23 @@ contract VaultSentinelReactive is AbstractPausableReactive {
             );
         }
 
-        if (!vm) {
-            service.subscribe(
-                SEPOLIA_CHAIN_ID, _priceFeed, ANSWER_UPDATED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
-            );
-            service.subscribe(
-                SEPOLIA_CHAIN_ID, _balanceMonitor, BALANCE_CHANGED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
-            );
-            defaultSubscriptionsInitialized = true;
+        if (!vm && _autoInitializeDefaultSubscriptions) {
+            _initializeDefaultSubscriptions();
         }
     }
 
     function initializeDefaultSubscriptions() external rnOnly onlyOwner {
-        if (defaultSubscriptionsInitialized) {
-            revert DefaultSubscriptionsAlreadyInitialized();
-        }
+        _initializeDefaultSubscriptions();
+    }
 
+    function isSentinelPaused() external view returns (bool) {
+        return paused;
+    }
+
+    function _initializeDefaultSubscriptions() internal {
+        if (defaultSubscriptionsInitialized) {
+            return;
+        }
         service.subscribe(
             SEPOLIA_CHAIN_ID, priceFeed, ANSWER_UPDATED_TOPIC_0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE
         );
@@ -124,6 +132,7 @@ contract VaultSentinelReactive is AbstractPausableReactive {
         );
 
         defaultSubscriptionsInitialized = true;
+        emit DefaultSubscriptionsInitialized(priceFeed, balanceMonitor);
     }
 
     function addRule(
@@ -213,7 +222,7 @@ contract VaultSentinelReactive is AbstractPausableReactive {
             }
 
             bytes memory payload = abi.encodeWithSelector(
-                VaultExecution.executeFromReactive.selector, owner, rule.id, rule.adapter, rule.extraData
+                VaultExecution.executeFromReactive.selector, expectedRvmId, rule.id, rule.adapter, rule.extraData
             );
 
             emit Callback(destinationChainId, vaultExecution, rule.callbackGasLimit, payload);

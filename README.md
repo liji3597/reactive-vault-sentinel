@@ -1,44 +1,105 @@
 # Reactive Vault Sentinel
 
-Reactive Vault Sentinel 是一个面向黑客松场景的跨链金库守护 Demo：它在 **Sepolia** 监听风险事件，在 **Reactive Lasna** 上执行规则判断，并在 **Base Sepolia** 触发保护动作，用来展示一条完整的“事件驱动跨链自动化风控”链路。
+![Solidity](https://img.shields.io/badge/Solidity-0.8.28-363636?logo=solidity&logoColor=white) ![Foundry](https://img.shields.io/badge/Foundry-Contracts-black?logo=ethereum&logoColor=white) ![Next.js](https://img.shields.io/badge/Next.js-14-black?logo=nextdotjs&logoColor=white) ![Sepolia](https://img.shields.io/badge/Source-Sepolia-6c5ce7) ![Base Sepolia](https://img.shields.io/badge/Target-Base%20Sepolia-0052ff) ![Reactive Lasna](https://img.shields.io/badge/Reactive-Lasna-00c2ff)
 
-当前仓库已经具备：
+> Autonomous cross-chain risk management for vaults: detect risk on **Sepolia**, evaluate intent on **Reactive Lasna**, and execute protection actions on **Base Sepolia**.
+>
+> **Current status:** the MVP, frontend demo surfaces, contract code, tests, and deployment artifacts exist. The remaining blocker is **confirmed end-to-end callback delivery on Lasna**.
 
-- 智能合约源码、部署脚本、ABI、Foundry 测试
-- Next.js 前端演示应用
-- Sepolia / Base Sepolia 的部署与验证基础能力
-- 本地可运行的 Demo 演示路径
+[Demo Surfaces](#demo-surfaces) · [Architecture](#architecture) · [Status](#current-status) · [Evidence](#evidence) · [Setup](#local-setup) · [Repository Layout](#repository-layout)
 
-当前仓库**尚未完成最终实链闭环验收**。阻塞点集中在 **Reactive Lasna**：`VaultSentinelReactive` 在 Lasna 上执行 `service.subscribe(...)` 时发生系统级回滚，因此 **Sepolia → Lasna → Base Sepolia** 的真实回调链路目前无法确认为已打通。
+## Judge summary
+
+| Area | Status | Evidence |
+|---|---|---|
+| Product demo | Ready | `apps/web/src/app/page.tsx`, `apps/web/src/app/rules/page.tsx`, `apps/web/src/app/trace/page.tsx` |
+| Contract code | Implemented | `contracts/src/` |
+| Sepolia source deploy | Evidenced | `contracts/broadcast/DeploySepolia.s.sol/11155111/run-latest.json` |
+| Base execution deploy | Evidenced | `contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-latest.json` |
+| Lasna subscribe via `forge script` | Blocked | `scripts/e2e/step11-escalation-final.txt` |
+| Lasna subscribe via `forge create` | Works for registration | recent probe and deploy evidence in `scripts/e2e/` + local broadcast artifacts |
+| Full Sepolia → Lasna → Base callback landing | Not yet confirmed | `scripts/e2e/step11-incident-evidence.txt`, `scripts/e2e/step11-escalation-final.txt` |
+
+## What judges should inspect first
+
+1. **Product surface**
+   - `apps/web/src/app/page.tsx`
+   - `apps/web/src/app/rules/page.tsx`
+   - `apps/web/src/app/trace/page.tsx`
+2. **Execution core**
+   - `contracts/src/sentinel/VaultSentinelReactive.sol`
+   - `contracts/src/execution/VaultExecution.sol`
+3. **Deployment proof**
+   - `contracts/broadcast/DeploySepolia.s.sol/11155111/run-latest.json`
+   - `contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-latest.json`
+4. **Real blocker evidence**
+   - `scripts/e2e/step11-incident-evidence.txt`
+   - `scripts/e2e/step11-escalation-final.txt`
 
 ---
 
-## 1. 项目目标
+## Problem → Solution
 
-本项目的目标不是做一个庞大的 DeFi 平台，而是做一条足够清晰、可验证、可演示的跨链风控主链路：
+### Problem
 
-1. **源链监控**：监听价格或余额变化
-2. **Reactive 决策**：根据规则判断是否需要执行保护动作
-3. **目标链执行**：在目标链执行 transfer / swap / protection 等动作
-4. **前端展示**：通过 Dashboard、Rules、Live Trace 展示完整产品形态
+Cross-chain protection logic usually degrades into an ugly stack:
 
-一句话概括：
+- an off-chain watcher
+- a backend relay service
+- a hot wallet with execution rights
+- more moving parts than the demo actually needs
 
-> 当 Sepolia 上出现风险事件时，Reactive Vault Sentinel 尝试在 Reactive Lasna 上判断规则，并在 Base Sepolia 上执行预定义保护动作。
+That creates extra trust assumptions and makes the system harder to explain in a hackathon setting.
+
+### Solution
+
+Reactive Vault Sentinel reduces the intended path to three understandable layers:
+
+- **Sepolia** emits risk signals
+- **Reactive Lasna** decides whether a rule should fire
+- **Base Sepolia** executes the protective action through a single callback entrypoint
+
+That is the product and architecture being demonstrated in this repo.
 
 ---
 
-## 2. 系统架构
+## What this project does
+
+Reactive Vault Sentinel is a hackathon-style prototype for event-driven cross-chain vault protection.
+
+It is designed to:
+
+1. **Detect risk events on Sepolia** from price or balance monitors.
+2. **Evaluate reactive rules on Reactive Lasna** using subscription-driven logic.
+3. **Execute protection actions on Base Sepolia** through a unified callback executor and adapters.
+
+The repo also includes a **judge-friendly frontend demo** with a dashboard, a rule configurator, and a live trace replay.
+
+## Why Reactive Network here
+
+Without a reactive callback layer, the fallback is the usual ugly path: an off-chain watcher, a hot wallet, extra backend glue, and more trust assumptions.
+
+This project uses the Reactive pattern to keep the intended flow simple:
+
+- source-chain events originate on Sepolia
+- reactive logic decides whether protection should fire
+- target-chain execution happens through a single callback entrypoint on Base Sepolia
+
+That is the architectural idea being demonstrated here, even though the final Lasna callback delivery step is still the current blocker.
+
+---
+
+## Architecture
 
 ```text
 Sepolia
   ├─ MockPriceFeed
   └─ BalanceMonitor
-        │
+        │ emits source events
         ▼
 Reactive Lasna
   └─ VaultSentinelReactive
-        │ Callback
+        │ emits callback payloads
         ▼
 Base Sepolia
   └─ VaultExecution
@@ -47,259 +108,256 @@ Base Sepolia
       └─ AaveProtectionAdapter
 ```
 
-### 2.1 三段式职责
+### Component overview
 
-#### Sepolia：事件源
-负责产生日志事件，作为风控触发输入。
-
-- `MockPriceFeed`：模拟价格变动
-- `BalanceMonitor`：模拟余额变化 / 转出风险
-
-#### Reactive Lasna：规则引擎
-负责接收源链事件并在 Reactive 网络中判断是否命中规则。
-
-- `VaultSentinelReactive`：规则注册、规则暂停/恢复、事件匹配、回调发射
-
-#### Base Sepolia：执行层
-负责接收回调并执行保护动作。
-
-- `VaultExecution`：统一执行入口
-- adapters：具体动作实现
+| Layer | Component | Responsibility | Current state |
+|---|---|---|---|
+| Source chain | `MockPriceFeed`, `BalanceMonitor` | Emit risk signals on Sepolia | Implemented, deployed, and evidenced |
+| Reactive layer | `VaultSentinelReactive` | Register subscriptions, match rules, emit callback payloads | Implemented; Lasna delivery remains the blocker |
+| Execution layer | `VaultExecution` + adapters | Receive callback and execute protection logic on Base Sepolia | Implemented, tested, and deployed |
+| Frontend | Dashboard / Rules / Trace | Explain and demo the product flow | Working in demo-safe mode |
 
 ---
 
-## 3. 核心能力
+## Current status
 
-### 3.1 规则类型
+### Confirmed working
 
-当前支持的规则类型：
+- Core Solidity contracts are implemented under `contracts/src/`
+- Foundry test coverage exists for the sentinel, execution layer, adapters, and integrated flow
+- The frontend app under `apps/web` runs and presents the product clearly
+- The UI already exposes three useful demo surfaces:
+  - Dashboard
+  - Rule Configurator
+  - Live Trace replay
+- Sepolia source contracts can be deployed and emit source events
+- Base Sepolia execution contracts can be deployed and configured
 
-- `PriceBelow`
-- `PriceAbove`
-- `TransferOutflow`
+### Confirmed and evidenced
 
-### 3.2 执行动作
+- Sepolia deployment artifacts exist for:
+  - `MockPriceFeed`
+  - `BalanceMonitor`
+- Base Sepolia deployment artifacts exist for:
+  - `VaultExecution`
+  - `BasicTransferAdapter`
+  - `UniswapStopOrderAdapter`
+  - `AaveProtectionAdapter`
+- Smoke and escalation evidence files are present under `scripts/e2e/`
+- Latest Step 11 rerun still produced the same failure boundary:
+  - Sepolia source event was observed successfully
+  - Lasna showed **no** new `RuleTriggered` and **no** new `Callback` event in the verification window
+  - Base showed **no** `ExecutionSucceeded`
+  - Lasna RPC state reads for pause/subscription flags were unstable during the rerun, but debt read returned zero
+- Recent debugging established a sharper fault boundary:
+  - `forge script` on Lasna fails in the `subscribe()` path
+  - `forge create` can deploy and register subscriptions on Lasna
+  - even with minimal probes, we still do **not** have a confirmed Base-side callback landing from Lasna
 
-当前支持的目标链动作：
+### Not yet end-to-end validated
 
-- 基础转账：`BasicTransferAdapter`
-- Uniswap 止损：`UniswapStopOrderAdapter`
-- Aave 防护：`AaveProtectionAdapter`
+The repo does **not** currently claim a fully verified Sepolia → Lasna → Base callback closure.
 
-### 3.3 前端演示能力
+The latest Step 11 smoke rerun also failed with the same shape:
 
-前端提供三个可演示页面：
+- source event on Sepolia: observed
+- new Lasna `RuleTriggered`: not observed
+- new Lasna `Callback`: not observed
+- Base `ExecutionSucceeded`: not observed
 
-- `/`：Dashboard
-- `/rules`：Rule Configurator
-- `/trace`：Live Trace
+The strongest current diagnosis is:
 
-其中：
+- the blocker is **not** primarily in business-contract logic,
+- and is **more likely in Lasna callback delivery/runtime behavior** after subscription registration.
 
-- Dashboard 展示整体产品形态与规则/事件概览
-- Rules 支持 Demo 模式下本地模拟创建规则
-- Live Trace 展示一条完整的跨链执行回放
-
----
-
-## 4. 技术栈
-
-### 合约侧
-
-- Solidity `0.8.28`
-- Foundry
-- OpenZeppelin Contracts v5
-- Reactive Lib
-
-### 前端侧
-
-- Next.js `14.1.4`
-- React `18`
-- TypeScript
-- Tailwind CSS
-- wagmi v2
-- viem
-- TanStack Query
-- Framer Motion
-- RainbowKit（依赖仍存在，但当前运行路径已不依赖其 UI 组件）
+That distinction matters: this is not an incomplete toy repo. It is a mostly-built MVP whose last real-network step is still blocked by the Reactive Lasna path.
 
 ---
 
-## 5. 仓库结构
+## Evidence
 
-```text
-reactive-vault-sentinel/
-├─ apps/
-│  └─ web/                      # Next.js 14 演示前端
-├─ contracts/                   # Foundry 合约、脚本、测试、.env
-├─ packages/
-│  ├─ abi/                      # 导出的 JSON ABI
-│  └─ config/                   # 链与地址配置
-├─ scripts/
-│  ├─ contracts/                # 合约测试脚本
-│  └─ e2e/                      # Step11 冒烟验证与排障材料
-├─ package.json                 # workspace 根脚本
-├─ pnpm-workspace.yaml
-└─ README.md
-```
+### Artifact map
 
-### 5.1 合约目录
+| If you want to inspect... | Open this |
+|---|---|
+| Current Sepolia deployment artifact | `contracts/broadcast/DeploySepolia.s.sol/11155111/run-latest.json` |
+| Current Base deployment artifact | `contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-latest.json` |
+| Historical Base redeploy referenced in escalation | `contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-1775059000247.json` |
+| Smoke verification procedure | `scripts/e2e/smoke.sh` |
+| Incident log | `scripts/e2e/step11-incident-evidence.txt` |
+| Escalation summary | `scripts/e2e/step11-escalation-final.txt` |
+| Reactive ABI | `packages/abi/VaultSentinelReactive.json` |
+| Base execution ABI | `packages/abi/VaultExecution.json` |
 
-核心合约：
+### Deployment artifacts
 
-- `contracts/src/mocks/MockPriceFeed.sol`
-- `contracts/src/monitors/BalanceMonitor.sol`
-- `contracts/src/sentinel/VaultSentinelReactive.sol`
-- `contracts/src/execution/VaultExecution.sol`
-- `contracts/src/adapters/basic/BasicTransferAdapter.sol`
-- `contracts/src/adapters/uniswap/UniswapStopOrderAdapter.sol`
-- `contracts/src/adapters/aave/AaveProtectionAdapter.sol`
+| Artifact | What it proves |
+|---|---|
+| [`contracts/broadcast/DeploySepolia.s.sol/11155111/run-latest.json`](contracts/broadcast/DeploySepolia.s.sol/11155111/run-latest.json) | Current Sepolia deployment artifact for `MockPriceFeed` and `BalanceMonitor` |
+| [`contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-latest.json`](contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-latest.json) | Current Base Sepolia deployment artifact for the execution layer |
+| [`contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-1775059000247.json`](contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-1775059000247.json) | Earlier Base Sepolia redeploy artifact referenced in escalation notes |
 
-部署脚本：
+### Smoke and incident evidence
+
+| Artifact | What it shows |
+|---|---|
+| [`scripts/e2e/smoke.sh`](scripts/e2e/smoke.sh) | Current smoke verification procedure; success now requires the full chain: Sepolia source event, Lasna callback, and Base `ExecutionSucceeded` |
+| [`scripts/e2e/step11-incident-evidence.txt`](scripts/e2e/step11-incident-evidence.txt) | Observed Sepolia event / missing Lasna callback evidence |
+| [`scripts/e2e/step11-escalation-final.txt`](scripts/e2e/step11-escalation-final.txt) | Minimal repro summary and escalation-ready diagnosis |
+
+### Exported interfaces
+
+| ABI | Purpose |
+|---|---|
+| [`packages/abi/VaultSentinelReactive.json`](packages/abi/VaultSentinelReactive.json) | Reactive rule engine ABI |
+| [`packages/abi/VaultExecution.json`](packages/abi/VaultExecution.json) | Base execution entrypoint ABI |
+
+### Representative deployed contracts from current local artifacts
+
+These addresses are shown here only as **artifact-backed examples**, not as a promise that every linked path is fully live end-to-end.
+
+#### Sepolia (`contracts/broadcast/DeploySepolia.s.sol/11155111/run-latest.json`)
+
+- `MockPriceFeed`: `0xbc3e0eeb32d174f0a2de9cbf7d2bae5259b7a8e1`
+- `BalanceMonitor`: `0x433d2e2138571196f07e750cbab73aec36d46bc9`
+- Deployment txs:
+  - `0x98d0d03c40f30205155b4810a74e0febccdb4b389ad4ae84d4fa15ac2fa5bd62`
+  - `0x3576f5163a55d27bdc82723af31ece892d14d6c882b59c29e86fe0976a1d6dcb`
+
+#### Base Sepolia (`contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-latest.json`)
+
+- `VaultExecution`: `0x2497bd28d02297F0aCC928674bD915e519950C3F`
+- `BasicTransferAdapter`: `0xEa1976afEF7AACeFDf4F0Ab21CB77Cf39Db54703`
+- `UniswapStopOrderAdapter`: `0xc79957B6A4f1AF49039C9295F6d8900241571dd9`
+- `AaveProtectionAdapter`: `0xB37F2e404671be09446b5ab99Fd758DA91a47611`
+
+#### Historical Base redeploy referenced in escalation notes
+
+From [`scripts/e2e/step11-escalation-final.txt`](scripts/e2e/step11-escalation-final.txt) and [`contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-1775059000247.json`](contracts/broadcast/DeployBaseSepolia.s.sol/84532/run-1775059000247.json):
+
+- `VaultExecution`: `0x00a03196D9536337ed857F5D43dc7aE648e89Bf9`
+- `BasicTransferAdapter`: `0x5DCe4Eaaf21Bf4DaCB767dC6a8b45B7165dD92C0`
+- `UniswapStopOrderAdapter`: `0x91Da5ee2A393B8056E688BDD43103854b0Ee7128`
+- `AaveProtectionAdapter`: `0x06013D3B5cA4662246CC3E345E39BEDf29758484`
+
+---
+
+## Demo surfaces
+
+The frontend is intentionally useful for hackathon review even when Lasna is not completing the final callback hop.
+
+### Dashboard
+
+- File: `apps/web/src/app/page.tsx`
+- Purpose: explain the product in one screen
+- Current behavior:
+  - shows safe demo mode when contracts are not configured
+  - highlights positions, rules, and event feed
+
+### Rule Configurator
+
+- File: `apps/web/src/app/rules/page.tsx`
+- Purpose: show how users define cross-chain protection rules
+- Current behavior:
+  - in demo mode, creation / pause / removal are simulated locally
+  - success message makes this explicit
+
+### Live Trace
+
+- File: `apps/web/src/app/trace/page.tsx`
+- Purpose: show the intended end-to-end lifecycle visually
+- Current behavior:
+  - runs as a simulated replay until real contract addresses and stable chain callbacks are configured
+  - useful for product communication, not proof of Lasna callback delivery
+
+---
+
+## Contracts and code structure
+
+### Core contracts
+
+| Contract | File | Role |
+|---|---|---|
+| `VaultSentinelReactive` | `contracts/src/sentinel/VaultSentinelReactive.sol` | Reactive rule engine on Lasna |
+| `VaultExecution` | `contracts/src/execution/VaultExecution.sol` | Base Sepolia execution entrypoint |
+| `BasicTransferAdapter` | `contracts/src/adapters/basic/BasicTransferAdapter.sol` | Basic transfer action |
+| `UniswapStopOrderAdapter` | `contracts/src/adapters/uniswap/UniswapStopOrderAdapter.sol` | Stop-order style action |
+| `AaveProtectionAdapter` | `contracts/src/adapters/aave/AaveProtectionAdapter.sol` | Aave-oriented protection action |
+| `MockPriceFeed` | `contracts/src/mocks/MockPriceFeed.sol` | Source event emitter |
+| `BalanceMonitor` | `contracts/src/monitors/BalanceMonitor.sol` | Source balance monitor |
+
+### Deployment scripts
 
 - `contracts/script/DeploySepolia.s.sol`
 - `contracts/script/DeployBaseSepolia.s.sol`
 - `contracts/script/DeployLasna.s.sol`
 
-测试文件：
+### Test and validation material
 
-- `contracts/test/VaultSentinelReactive.t.sol`
-- `contracts/test/ReactiveVaultFlow.t.sol`
-- 以及 mocks / monitors / execution / adapters 相关测试
-
-### 5.2 前端目录
-
-主要入口：
-
-- `apps/web/src/app/page.tsx`
-- `apps/web/src/app/rules/page.tsx`
-- `apps/web/src/app/trace/page.tsx`
-- `apps/web/src/app/providers.tsx`
+- Foundry tests under `contracts/test/`
+- Smoke and incident material under `scripts/e2e/`
 
 ---
 
-## 6. 已完成内容
+## Known limitations
 
-### 6.1 合约与脚本
+This section is intentionally blunt.
 
-已完成并验证过的部分：
+- Do **not** claim the full cross-chain callback path is fully verified today.
+- On Lasna, the `forge script` deployment path fails in the `service.subscribe(...)` setup path.
+- A `forge create` deployment path can still register subscriptions on Lasna.
+- Even after that, recent minimal-probe validation still did **not** produce a confirmed Base-side callback landing.
+- The current strongest diagnosis is therefore:
+  - **Lasna callback delivery/runtime remains the blocking fault domain**,
+  - not the product idea,
+  - not the frontend,
+  - and not obviously the Base execution contract logic.
 
-- 核心合约实现完成
-- VaultExecution + adapters 执行层实现完成
-- Foundry 单元测试通过
-- Sentinel 规则初始化 / 触发逻辑测试通过
-- Sepolia / Base Sepolia 部署脚本可运行
-- Lasna 部署脚本已多轮排查与修正
+Also note:
 
-### 6.2 前端
-
-已完成并可用：
-
-- Dashboard 页面
-- Rule Configurator 页面
-- Live Trace 页面
-- 本地 Demo 模式
-- 本地规则创建模拟
-- 钱包连接入口 UI
-
-### 6.3 集成与交付材料
-
-已具备：
-
-- `packages/abi/*` JSON ABI
-- `scripts/e2e/smoke.sh`
-- `scripts/e2e/step11-incident-evidence.txt`
-- `scripts/e2e/step11-escalation-final.txt`
+- `packages/config/contracts.ts` may lag behind the newest artifact-backed addresses.
+- For README-level claims, prefer the `contracts/broadcast/*` artifacts and `scripts/e2e/*` evidence files as the source of truth.
 
 ---
 
-## 7. 当前状态与限制
+## Local setup
 
-这是最重要的一节。不要跳过。
+### Prerequisites
 
-### 7.1 已验证通过的内容
+- Node.js / pnpm
+- Foundry (`forge`, `cast`)
 
-- `VaultSentinelReactive` 相关 Foundry 测试通过
-- 前端 `pnpm dev:web` 可启动
-- 前端页面可正常打开与交互
-- Rules 页可以在 Demo 模式下创建模拟规则
-- Live Trace 页面可播放模拟跨链流程
-- Sepolia 源链事件发送与基础部署流程已验证
-- Base Sepolia 执行层部署已验证
-
-### 7.2 当前阻塞点
-
-**Reactive Lasna 实链订阅链路未通过。**
-
-在真实 Lasna 部署时，`VaultSentinelReactive` 的 `service.subscribe(...)` 调用会触发系统级失败，表现为：
-
-- 合约构造可成功
-- 进入订阅阶段时回滚
-- 回滚路径落在 Lasna 系统合约 / `0x64` 自定义调用附近
-- 这不是本地单测能覆盖的问题
-
-因此，当前**不能宣称已经完成 Sepolia → Reactive Lasna → Base Sepolia 的真实链上闭环验收**。
-
-### 7.3 这意味着什么
-
-这意味着：
-
-- 项目主体不是坏的
-- 合约设计、测试、前端和部署脚本都已经成型
-- 但 Reactive Lasna 当前 runtime / RPC / 系统订阅路径阻塞了最后一步
-
-准确表述应该是：
-
-> 本项目已完成 MVP 与大部分链路验证；Lasna 实链回调闭环目前受测试网环境 / RPC / 系统订阅失败阻塞，暂未完成最终链上验收。
-
----
-
-## 8. 快速开始
-
-### 8.1 安装依赖
-
-在仓库根目录执行：
+### Install
 
 ```bash
 pnpm install
 ```
 
-### 8.2 准备 Foundry
+### Configure contracts
 
-确认本机可用：
-
-```bash
-forge --version
-cast --version
-```
-
-### 8.3 配置合约环境变量
-
-复制环境文件：
+Copy the example environment file:
 
 ```bash
 cp contracts/.env.example contracts/.env
 ```
 
-然后根据实际情况填写：
+Important variables from `contracts/.env.example`:
 
 - `SEPOLIA_RPC_URL`
 - `BASE_SEPOLIA_RPC_URL`
 - `REACTIVE_RPC_URL`
 - `OWNER`
-- keystore / private key
-- 已部署合约地址
+- `SEPOLIA_PRIVATE_KEY` / `BASE_PRIVATE_KEY` / `REACTIVE_PRIVATE_KEY`
+- `VAULT_EXECUTION_EXPECTED_RVM_ID`
+- deployment output addresses after each step
 
-说明：
+Important note:
 
-- 当前仓库实际使用过的 Lasna RPC 为：`https://lasna-rpc.rnk.dev/`
-- 但该 RPC / runtime 当前并不稳定，且是已知阻塞点之一
+- `VAULT_EXECUTION_EXPECTED_RVM_ID` is the **Reactive deployer wallet / expected RVM ID**, **not** the Lasna contract address.
 
----
+### Useful commands
 
-## 9. 常用命令
-
-### 9.1 根目录
+#### Root
 
 ```bash
 pnpm dev:web
@@ -309,14 +367,14 @@ pnpm test:contracts
 pnpm smoke:e2e
 ```
 
-### 9.2 合约相关
+#### Contracts
 
 ```bash
 pnpm --dir contracts exec forge build
 pnpm --dir contracts exec forge test
 ```
 
-### 9.3 前端相关
+#### Frontend
 
 ```bash
 pnpm --filter @vault-sentinel/web dev
@@ -326,259 +384,58 @@ pnpm --filter @vault-sentinel/web lint
 
 ---
 
-## 10. 前端运行方式
+## Demo run
 
-在仓库根目录执行：
+If you want the fastest judge/demo path:
 
-```bash
-pnpm dev:web
-```
+1. Start the frontend:
+   ```bash
+   pnpm dev:web
+   ```
+2. Open `http://localhost:3000`
+3. Show:
+   - Dashboard
+   - Rule Configurator
+   - Live Trace
+4. Explain clearly:
+   - source events come from Sepolia
+   - intended rules run on Reactive Lasna
+   - target actions execute on Base Sepolia
+   - current UI is demo-safe where Lasna callback confirmation is still blocked
 
-启动成功后访问：
+This is a stronger demo than pretending the final callback hop is already stable.
+
+---
+
+## Repository layout
 
 ```text
-http://localhost:3000
+reactive-vault-sentinel/
+├─ apps/          # Next.js demo frontend
+├─ contracts/     # Solidity contracts, scripts, tests, env, broadcast artifacts
+├─ packages/      # exported ABIs and shared config
+├─ scripts/       # smoke and evidence scripts
+├─ package.json
+├─ pnpm-workspace.yaml
+└─ README.md
 ```
 
-当前前端以 **Demo Mode** 为主，不依赖 Lasna 实链回调就可以展示主要产品流程。
-
-### 当前已验证的前端页面
-
-- `/` Dashboard：正常
-- `/rules` Rule Configurator：正常
-- `/trace` Live Trace：正常
-
-### 当前已知前端小问题
-
-不影响演示，但存在一些非阻塞问题：
-
-- `grid.svg` 缺失导致首页背景资源 404
-- `favicon.ico` 缺失导致浏览器资源 404
-- Lasna explorer 地址配置仍可能指向旧测试网地址，需要后续修正
-
 ---
 
-## 11. 合约测试与 E2E
+## Bottom line
 
-### 11.1 合约测试
+Reactive Vault Sentinel is already a serious MVP:
 
-运行：
+- the product surface exists,
+- the contracts are implemented,
+- tests and deployment artifacts exist,
+- the frontend is polished enough for a hackathon review,
+- and the remaining problem is sharply isolated.
 
-```bash
-pnpm test:contracts
-```
+The unfinished part is **not** “does the project make sense?”
 
-或：
+The unfinished part is:
 
-```bash
-pnpm --dir contracts exec forge test
-```
+> whether Reactive Lasna will reliably complete the final callback delivery step for this flow in the current testnet/runtime environment.
 
-### 11.2 E2E 冒烟验证
-
-运行：
-
-```bash
-pnpm smoke:e2e
-```
-
-其核心脚本为：
-
-- `scripts/e2e/smoke.sh`
-
-用途：
-
-- 从 Sepolia 触发源事件
-- 观察 Lasna 是否出现回调痕迹
-- 检查 Base Sepolia 执行链路
-
-当前结论：
-
-- Sepolia 源事件可观察到
-- Lasna 回调事件当前未稳定出现
-- 因此 Step11 仍处于阻塞态
-
----
-
-## 12. 部署说明
-
-### 12.1 目标网络
-
-- Sepolia：源链事件
-- Base Sepolia：目标链执行
-- Reactive Lasna：规则判断 / callback 发射
-
-### 12.2 脚本
-
-- `contracts/script/DeploySepolia.s.sol`
-- `contracts/script/DeployBaseSepolia.s.sol`
-- `contracts/script/DeployLasna.s.sol`
-
-### 12.3 当前部署现实
-
-- Sepolia / Base Sepolia 路径已具备可重复部署基础
-- Lasna 路径当前仍可能因系统订阅失败而回滚
-
-因此，当前部署状态应理解为：
-
-- **Sepolia / Base：可继续联调**
-- **Lasna：当前受外部测试网环境阻塞**
-
----
-
-## 13. 演示模式说明
-
-当前最稳的演示方式，不是硬讲实链全通，而是：
-
-- 用前端展示产品完整形态
-- 用 Demo Mode 演示规则配置
-- 用 Live Trace 演示完整业务路径
-- 用 README / 排障包诚实说明 Lasna 阻塞原因
-
-这比硬编一个“已经全打通”的故事靠谱得多。
-
----
-
-## 14. 如何演示
-
-下面是一套可直接对评审/面试官/黑客松评委使用的演示顺序。
-
-### 第一步：启动前端
-
-```bash
-pnpm install
-pnpm dev:web
-```
-
-打开：
-
-```text
-http://localhost:3000
-```
-
-### 第二步：展示 Dashboard
-
-进入首页 `/`，重点说明：
-
-- 这是一个跨链自动化风控系统
-- 事件来自 Sepolia
-- 规则在 Reactive Network 上判断
-- 动作在 Base Sepolia 执行
-
-可展示内容：
-
-- Overview 卡片
-- Active Sentinel Rules
-- Live Event Feed
-- Demo Mode 提示
-
-推荐话术：
-
-> 这里展示的是整个产品的控制台视角。用户在源链配置监控规则，一旦事件触发，Reactive 网络负责判断是否命中策略，随后在目标链执行保护动作。
-
-### 第三步：展示 Rules 页面
-
-进入 `/rules`，重点展示：
-
-- 当前规则列表
-- 模板入口
-- Rule Wizard
-- Demo 模式下的本地模拟创建
-
-实际操作建议：
-
-1. 点击 `New Rule`
-2. 选择默认 Source Chain / Asset
-3. 继续到条件页
-4. 输入一个阈值，例如 `1234`
-5. 点击 `Simulate Rule Deployment`
-
-成功后页面会出现 toast：
-
-- `Sentinel rule simulated successfully!`
-
-规则列表数量会增加，可直接作为“交互完成”的可视结果。
-
-推荐话术：
-
-> 这里我演示的是规则配置层。当前 Demo 模式不会依赖链上真实回调，所以我们可以稳定展示用户如何定义触发条件和目标动作。
-
-### 第四步：展示 Live Trace
-
-进入 `/trace`，说明：
-
-- 这是整个 Sepolia → ReactVM → Base Sepolia 的执行回放
-- 当前是 **模拟 trace**，不是实时 Lasna 链上回放
-- 它用于展示产品逻辑闭环和用户可理解的执行路径
-
-推荐强调：
-
-- Phase 01：源链事件
-- Phase 02：Reactive VM 判断
-- Phase 03：目标链执行
-
-推荐话术：
-
-> 这里展示的是完整业务闭环：在源链发现风险事件后，Reactive 网络进行规则判断，再将回调发送到目标链执行保护动作。当前页面展示的是 replay 版 trace，用于稳定演示完整流程。
-
-### 第五步：诚实说明当前未完成项
-
-最后一定要讲清楚：
-
-- 合约和前端主体已完成
-- 本地演示与大多数工程能力已验证
-- 当前未完成的是 **Lasna 实链最终回调闭环验收**
-- 原因不是本地前端挂了，而是 Reactive Lasna 当前订阅路径回滚
-
-推荐总结话术：
-
-> 当前 MVP、前端演示、规则配置、合约测试和多链部署基础能力都已经完成。最后一步实链闭环被 Lasna 测试网的系统订阅失败阻塞，所以现场我用 Demo Mode 和 Trace Replay 展示完整产品形态，同时保留真实链上联调结果与排障证据。
-
----
-
-## 15. 不要夸大的边界
-
-演示时不要说以下话：
-
-- “已经全链路实链打通”
-- “Lasna 已稳定完成 callback”
-- “Step11 已完全通过”
-
-更准确的说法是：
-
-- “本地 MVP 与前端演示已完成”
-- “Sepolia / Base 路径已基本验证”
-- “Lasna 最后一段实链闭环当前受测试网环境阻塞”
-
----
-
-## 16. 后续工作建议
-
-如果继续推进，优先级建议如下：
-
-1. 修复 /确认 Lasna `service.subscribe(...)` 系统级失败原因
-2. 与 Reactive 团队确认 Lasna RPC / runtime / system contract 状态
-3. 完成 Step11 实链闭环复测
-4. 将前端切换为真实地址模式
-5. 修复前端静态资源缺失（`grid.svg` / `favicon.ico`）
-6. 修正 Lasna explorer 地址
-
----
-
-## 17. 结论
-
-Reactive Vault Sentinel 目前已经是一个**可运行、可测试、可演示、可继续联调**的 MVP 仓库。
-
-它已经完成了：
-
-- 产品结构
-- 合约骨架
-- 测试体系
-- 前端 Demo
-- 多链部署基础
-
-它尚未完成的，是 **Reactive Lasna 测试网环境上的最后一段真实闭环验收**。
-
-这不是“项目没做完”，而是“最后一段实链依赖当前被测试网环境卡住”。
-
-对黑客松交付来说，这个状态是可以说明、可以展示、也可以继续推进的。
+That is the right boundary to communicate to judges, collaborators, and future maintainers.

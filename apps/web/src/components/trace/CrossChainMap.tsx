@@ -1,9 +1,21 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import PhaseCard from './PhaseCard';
 import ConnectingLine from './ConnectingLine';
 
 export default function CrossChainMap({ activePhase }: { activePhase: 1 | 2 | 3 }) {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  const orientation = isMobile ? 'vertical' : 'horizontal';
+
   return (
     <div className="relative h-full flex flex-col md:flex-row items-center justify-between gap-8 md:gap-4 z-10 px-4 py-8 md:py-0">
       <div className="w-full md:flex-1 flex flex-col items-center">
@@ -19,7 +31,7 @@ export default function CrossChainMap({ activePhase }: { activePhase: 1 | 2 | 3 
       </div>
 
       <div className="h-16 w-1 md:h-1 md:w-32 relative flex items-center justify-center">
-        <ConnectingLine active={activePhase === 2} orientation={typeof window !== 'undefined' && window.innerWidth < 768 ? 'vertical' : 'horizontal'} />
+        <ConnectingLine active={activePhase === 2} orientation={orientation} />
       </div>
 
       <div className="w-full md:flex-1 flex flex-col items-center">
@@ -35,7 +47,7 @@ export default function CrossChainMap({ activePhase }: { activePhase: 1 | 2 | 3 
       </div>
 
       <div className="h-16 w-1 md:h-1 md:w-32 relative flex items-center justify-center">
-        <ConnectingLine active={activePhase === 3} orientation={typeof window !== 'undefined' && window.innerWidth < 768 ? 'vertical' : 'horizontal'} />
+        <ConnectingLine active={activePhase === 3} orientation={orientation} />
       </div>
 
       <div className="w-full md:flex-1 flex flex-col items-center">

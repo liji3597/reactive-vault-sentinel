@@ -21,9 +21,9 @@ export default function ConnectingLine({ active, orientation = 'horizontal' }: {
             animate={isHorizontal ? { left: '100%' } : { top: '100%' }}
             transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
             className={clsx(
-              "absolute bg-gradient-to-r from-transparent via-cyan-400 to-transparent",
-              isHorizontal 
-                ? "top-0 bottom-0 w-1/2 bg-gradient-to-r" 
+              "absolute from-transparent via-cyan-400 to-transparent",
+              isHorizontal
+                ? "top-0 bottom-0 w-1/2 bg-gradient-to-r"
                 : "left-0 right-0 h-1/2 bg-gradient-to-b"
             )}
           />

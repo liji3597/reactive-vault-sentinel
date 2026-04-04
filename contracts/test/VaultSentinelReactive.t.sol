@@ -20,6 +20,7 @@ contract VaultSentinelReactiveTest is Test {
 
     address internal owner = address(this);
     address internal vaultExecution = address(0xE1);
+    address internal expectedRvmId = address(0xBEEF);
     address internal priceFeed = address(0xF1);
     address internal balanceMonitor = address(0xF2);
     address internal adapter = address(0xA1);
@@ -123,8 +124,9 @@ contract VaultSentinelReactiveTest is Test {
             log_index: 1
         });
 
-        bytes memory payload =
-            abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, owner, ruleId, adapter, extraData);
+        bytes memory payload = abi.encodeWithSelector(
+            VaultExecution.executeFromReactive.selector, expectedRvmId, ruleId, adapter, extraData
+        );
 
         vm.expectEmit(true, true, true, true, address(sentinel));
         emit Callback(DESTINATION_CHAIN_ID, vaultExecution, CALLBACK_GAS, payload);
@@ -200,8 +202,9 @@ contract VaultSentinelReactiveTest is Test {
             log_index: 3
         });
 
-        bytes memory payload =
-            abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, owner, ruleId, adapter, extraData);
+        bytes memory payload = abi.encodeWithSelector(
+            VaultExecution.executeFromReactive.selector, expectedRvmId, ruleId, adapter, extraData
+        );
         vm.expectEmit(true, true, true, true, address(sentinel));
         emit Callback(DESTINATION_CHAIN_ID, vaultExecution, CALLBACK_GAS, payload);
 
@@ -242,8 +245,9 @@ contract VaultSentinelReactiveTest is Test {
             log_index: 4
         });
 
-        bytes memory payload =
-            abi.encodeWithSelector(VaultExecution.executeFromReactive.selector, owner, uint256(0), adapter, extraData);
+        bytes memory payload = abi.encodeWithSelector(
+            VaultExecution.executeFromReactive.selector, expectedRvmId, uint256(0), adapter, extraData
+        );
 
         vm.expectEmit(true, true, true, true, address(bootstrapped));
         emit Callback(DESTINATION_CHAIN_ID, vaultExecution, CALLBACK_GAS, payload);
@@ -251,10 +255,27 @@ contract VaultSentinelReactiveTest is Test {
         bootstrapped.react(log);
     }
 
-    function test_ConstructorInitializesDefaultSubscriptions() external {
-        assertTrue(sentinel.defaultSubscriptionsInitialized());
-        vm.expectRevert(VaultSentinelReactive.DefaultSubscriptionsAlreadyInitialized.selector);
-        sentinel.initializeDefaultSubscriptions();
+    function test_InitializeDefaultSubscriptions_ExplicitInitPathIsIdempotent() external {
+        VaultSentinelReactive.RuleInput[] memory bootstrapRules = new VaultSentinelReactive.RuleInput[](0);
+        VaultSentinelReactive noAutoInit = _deployRnSentinelWithRulesAndAutoInit(bootstrapRules, false);
+
+        assertFalse(noAutoInit.defaultSubscriptionsInitialized());
+
+        noAutoInit.initializeDefaultSubscriptions();
+        assertTrue(noAutoInit.defaultSubscriptionsInitialized());
+
+        noAutoInit.initializeDefaultSubscriptions();
+        assertTrue(noAutoInit.defaultSubscriptionsInitialized());
+    }
+
+    function test_IsSentinelPausedGetterReflectsPauseResume() external {
+        assertFalse(sentinel.isSentinelPaused());
+
+        sentinel.pause();
+        assertTrue(sentinel.isSentinelPaused());
+
+        sentinel.resume();
+        assertFalse(sentinel.isSentinelPaused());
     }
 
     function _deployRnSentinel() internal returns (VaultSentinelReactive) {
@@ -266,9 +287,27 @@ contract VaultSentinelReactiveTest is Test {
         internal
         returns (VaultSentinelReactive)
     {
+        return _deployRnSentinelWithRulesAndAutoInit(bootstrapRules, true);
+    }
+
+    function _deployRnSentinelWithRulesAndAutoInit(
+        VaultSentinelReactive.RuleInput[] memory bootstrapRules,
+        bool autoInitializeDefaultSubscriptions
+    )
+        internal
+        returns (VaultSentinelReactive)
+    {
         vm.etch(SYSTEM_CONTRACT, hex"00");
         return new VaultSentinelReactive(
-            owner, vaultExecution, DESTINATION_CHAIN_ID, priceFeed, balanceMonitor, CALLBACK_GAS, bootstrapRules
+            owner,
+            vaultExecution,
+            expectedRvmId,
+            DESTINATION_CHAIN_ID,
+            priceFeed,
+            balanceMonitor,
+            CALLBACK_GAS,
+            bootstrapRules,
+            autoInitializeDefaultSubscriptions
         );
     }
 

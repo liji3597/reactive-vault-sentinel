@@ -32,6 +32,7 @@ contract ReactiveVaultFlowTest is Test {
     address internal owner = address(this);
     address internal callbackProxy = address(0xC0FFEE);
     address internal priceFeed = address(0x1001);
+    address internal expectedRvmId = address(0xBEEF);
     address internal balanceMonitor = address(0x1002);
 
     VaultExecution internal execution;
@@ -39,7 +40,7 @@ contract ReactiveVaultFlowTest is Test {
     FlowAdapter internal adapter;
 
     function setUp() external {
-        execution = new VaultExecution(owner, callbackProxy);
+        execution = new VaultExecution(owner, callbackProxy, address(0));
         adapter = new FlowAdapter();
         execution.setAdapterAllowed(address(adapter), true);
 
@@ -48,12 +49,16 @@ contract ReactiveVaultFlowTest is Test {
         sentinel = new VaultSentinelReactive(
             owner,
             address(execution),
+            expectedRvmId,
             BASE_SEPOLIA_CHAIN_ID,
             priceFeed,
             balanceMonitor,
             CALLBACK_GAS,
-            bootstrapRules
+            bootstrapRules,
+            true
         );
+
+        execution.setExpectedRvmId(expectedRvmId);
     }
 
     function test_FullReactiveVaultFlow() external {
@@ -96,17 +101,17 @@ contract ReactiveVaultFlowTest is Test {
         assertEq(targetFromEvent, address(execution));
         assertEq(gasFromEvent, CALLBACK_GAS);
 
-        (bytes4 selector, address payloadRvmId, uint256 payloadRuleId, address payloadAdapter, bytes memory payloadData) =
-            _decodeExecutePayload(payload);
+        (bytes4 selector, address payloadExpectedRvmId, uint256 payloadRuleId, address payloadAdapter, bytes memory payloadData)
+            = _decodeExecutePayload(payload);
 
         assertEq(selector, VaultExecution.executeFromReactive.selector);
-        assertEq(payloadRvmId, owner);
+        assertEq(payloadExpectedRvmId, expectedRvmId);
         assertEq(payloadRuleId, ruleId);
         assertEq(payloadAdapter, address(adapter));
         assertEq(payloadData, adapterData);
 
         vm.prank(callbackProxy);
-        execution.executeFromReactive(payloadRvmId, payloadRuleId, payloadAdapter, payloadData);
+        execution.executeFromReactive(payloadExpectedRvmId, payloadRuleId, payloadAdapter, payloadData);
 
         assertTrue(adapter.called());
         assertEq(adapter.lastRuleId(), ruleId);

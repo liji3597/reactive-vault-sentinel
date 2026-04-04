@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Check, ChevronRight, Database, Shield, Zap } from 'lucide-react';
+import { Check, ChevronRight, Database, Shield, Zap, Loader2 } from 'lucide-react';
 import type { AppMode } from '@/lib/contracts';
 import type { DemoRuleType } from '@/lib/demoData';
 
@@ -28,6 +28,7 @@ export default function RuleWizard({
   onComplete: (formData: RuleWizardFormData) => void;
 }) {
   const [currentStep, setCurrentStep] = useState(1);
+  const [isDeploying, setIsDeploying] = useState(false);
   const [formData, setFormData] = useState<RuleWizardFormData>({
     chain: 'sepolia',
     asset: 'ETH',
@@ -38,6 +39,14 @@ export default function RuleWizard({
 
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 3));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 1));
+
+  const handleComplete = async () => {
+    setIsDeploying(true);
+    // Simulate deployment delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    onComplete(formData);
+    setIsDeploying(false);
+  };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
@@ -239,21 +248,31 @@ export default function RuleWizard({
       <div className="p-8 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between">
         <button
           onClick={prevStep}
-          disabled={currentStep === 1}
+          disabled={currentStep === 1 || isDeploying}
           className="px-6 py-2 rounded-xl text-slate-400 hover:text-white disabled:opacity-0 transition-all"
         >
           Back
         </button>
         <button
-          onClick={currentStep === 3 ? () => onComplete(formData) : nextStep}
-          className="flex items-center gap-2 px-8 py-3 rounded-xl bg-cyan-400 text-black font-bold hover:bg-cyan-300 transition-all shadow-cyan-glow"
+          onClick={currentStep === 3 ? handleComplete : nextStep}
+          disabled={isDeploying}
+          className="flex items-center gap-2 px-8 py-3 rounded-xl bg-cyan-400 text-black font-bold hover:bg-cyan-300 transition-all shadow-cyan-glow disabled:bg-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed"
         >
-          {currentStep === 3
-            ? mode === 'demo'
-              ? 'Simulate Rule Deployment'
-              : 'Deploy Sentinel Rule'
-            : 'Continue'}
-          <ChevronRight size={18} />
+          {isDeploying ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              {mode === 'demo' ? 'Simulating...' : 'Deploying...'}
+            </>
+          ) : (
+            <>
+              {currentStep === 3
+                ? mode === 'demo'
+                  ? 'Simulate Rule Deployment'
+                  : 'Deploy Sentinel Rule'
+                : 'Continue'}
+              <ChevronRight size={18} />
+            </>
+          )}
         </button>
       </div>
     </div>

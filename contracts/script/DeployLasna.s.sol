@@ -14,6 +14,7 @@ contract DeployLasna is Script {
     struct DeployConfig {
         address owner;
         address vaultExecution;
+        address expectedRvmId;
         uint256 destinationChainId;
         address priceFeed;
         address balanceMonitor;
@@ -31,6 +32,7 @@ contract DeployLasna is Script {
     function _loadConfig() internal view returns (DeployConfig memory cfg) {
         cfg.owner = vm.envAddress("OWNER");
         cfg.vaultExecution = vm.envAddress("VAULT_EXECUTION");
+        cfg.expectedRvmId = vm.envAddress("VAULT_EXECUTION_EXPECTED_RVM_ID");
         cfg.destinationChainId = vm.envUint("BASE_CHAIN_ID");
         cfg.priceFeed = vm.envAddress("MOCK_PRICE_FEED");
         cfg.balanceMonitor = vm.envAddress("BALANCE_MONITOR");
@@ -46,6 +48,18 @@ contract DeployLasna is Script {
     }
 
     function _startBroadcastWithOptionalKey(string memory privateKeyEnv) internal {
+        string memory keystore = vm.envOr("REACTIVE_KEYSTORE", string(""));
+        if (bytes(keystore).length != 0) {
+            vm.startBroadcast();
+            return;
+        }
+
+        string memory keystoreAccount = vm.envOr("REACTIVE_KEYSTORE_ACCOUNT", string(""));
+        if (bytes(keystoreAccount).length != 0) {
+            vm.startBroadcast();
+            return;
+        }
+
         string memory privateKey = vm.envOr(privateKeyEnv, string("__SET_LOCALLY_ONLY__"));
         if (
             bytes(privateKey).length != 0
@@ -84,19 +98,26 @@ contract DeployLasna is Script {
 
         _startBroadcastWithOptionalKey("REACTIVE_PRIVATE_KEY");
 
+        // _initializeDefaultSubscriptions() is guarded by `if (!vm)` in constructor.
+        // Forge simulation: vm=true → subscriptions skipped. On-chain: vm=false → subscriptions execute.
+        // Use --gas-estimate-multiplier 200 or explicit --gas-limit when broadcasting.
         VaultSentinelReactive sentinel = new VaultSentinelReactive{value: 0.1 ether}(
             cfg.owner,
             cfg.vaultExecution,
+            cfg.expectedRvmId,
             cfg.destinationChainId,
             cfg.priceFeed,
             cfg.balanceMonitor,
             cfg.defaultCallbackGas,
-            bootstrapRules
+            bootstrapRules,
+            true
         );
 
         vm.stopBroadcast();
 
         console2.log("=== Reactive Lasna Deployment ===");
         console2.log("VaultSentinelReactive:", address(sentinel));
+        console2.log("Subscription init mode:", "constructor auto-init (on-chain when !vm)");
+        console2.log("Broadcast tip:", "use --gas-estimate-multiplier 200 or set explicit --gas-limit");
     }
 }

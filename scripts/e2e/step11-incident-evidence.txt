@@ -134,3 +134,37 @@ Assessment update
 - Source-chain trigger prerequisites are satisfied and match rule(0) exactly.
 - Yet Lasna still shows no Callback and no RuleTriggered logs in recent range.
 - This further strengthens Reactive-side runtime/indexing/delivery-path diagnosis.
+
+
+---
+Date: 2026-03-31 14:32:00
+Clean rerun after confounder removal (RPC/provider + signer path)
+RPC updates
+- SEPOLIA_RPC_URL=https://eth-sepolia.api.onfinality.io/public
+- BASE_SEPOLIA_RPC_URL=https://base-sepolia.api.onfinality.io/public
+- REACTIVE_RPC_URL=https://lasna-rpc.rnk.dev/
+- Signer path fix: use Git Bash style /d/... paths (not /mnt/d/...)
+
+Run result
+- EXIT=1
+- TX_HASH=0x9d945938f0d824ba9f6e0b4c15b8d836e30f86defed252014bdf0cefeffeff9c
+- PRECHECK_SEPOLIA_BLOCK=0xa126e6
+- PRECHECK_BASE_BLOCK=0x25c40e1
+- PRECHECK_REACTIVE_BLOCK=0x2ce6f4
+- PRECHECK_LASNA_PAUSED_STATE=unknown
+- PRECHECK_LASNA_DEFAULT_SUBSCRIPTIONS_INITIALIZED=unknown
+- Runtime warning: curl: (35) schannel: failed to receive handshake, SSL/TLS connection failed
+- SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
+- BASE_EXECUTION_MONITOR_CONFIGURED=YES
+- LASNA_RULE_TRIGGERED_FOUND=NO
+- LASNA_CALLBACK_EVENTS_FOUND=NO
+- BASE_EXECUTION_SUCCEEDED_FOUND=NO
+- SENTINEL_PAUSED_STATE=unknown
+- DEFAULT_SUBSCRIPTIONS_INITIALIZED=unknown
+- SENTINEL_DEBT_DEC=0
+- Diagnosis=SOURCE_EVENT_OBSERVED_BUT_NO_REACTIVE_RULETRIGGERED_OR_CALLBACK
+- Diagnosis=LIKELY_REACTIVE_INFRA_ISSUE (no reactive events, debt clear, not paused)
+
+Interpretation
+- This rerun removes earlier confounders (PublicNode 403 and wrong /mnt/d signer path).
+- Failure signature persists with source event confirmed but no Lasna RuleTriggered/Callback, strengthening the Lasna subscription/ingest/react/callback fault-domain conclusion.

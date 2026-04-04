@@ -1,12 +1,35 @@
 'use client';
 
-import { Zap, CheckCircle2, AlertCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { Zap, CheckCircle2, AlertCircle, Check, Copy } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DEMO_EVENTS, type DemoEvent } from '@/lib/demoData';
 
 export default function EventFeed({ events = DEMO_EVENTS }: { events?: DemoEvent[] }) {
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = (tx: string, id: string) => {
+    navigator.clipboard.writeText(tx);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 relative">
+      <AnimatePresence>
+        {copiedId && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed top-24 right-8 z-50 flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 text-white text-sm font-bold shadow-cyan-glow"
+          >
+            <Check size={16} />
+            TX Copied
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {events.length === 0 ? (
         <div className="p-8 text-center rounded-xl bg-slate-900/50 border border-dashed border-slate-800">
           <p className="text-xs text-slate-500 font-mono">NO RECENT ACTIVITY</p>
@@ -36,9 +59,17 @@ export default function EventFeed({ events = DEMO_EVENTS }: { events?: DemoEvent
                     <span className="w-1.5 h-1.5 rounded-full bg-cyan-400" />
                     {event.status}
                   </div>
-                  <div className="text-[10px] font-mono text-slate-500 group-hover:text-cyan-400 transition-colors cursor-pointer">
+                  <button
+                    onClick={() => handleCopy(event.tx, String(event.id))}
+                    className={`text-[10px] font-mono flex items-center gap-1 transition-all ${
+                      copiedId === String(event.id) 
+                        ? 'text-emerald-400' 
+                        : 'text-slate-500 hover:text-cyan-400'
+                    }`}
+                  >
+                    {copiedId === String(event.id) ? <Check size={10} /> : <Copy size={10} />}
                     {event.tx}
-                  </div>
+                  </button>
                 </div>
               </div>
             </div>

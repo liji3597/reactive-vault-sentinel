@@ -1,75 +1,125 @@
-Subject: Step11 callback path still blocked despite source-event match - escalation request
+Subject: Minimal reproducible case - Lasna `service.subscribe(...)` reverts in all tested paths
 
-Hi Reactive team,
+Hi Reactive/Lasna team,
 
-We are escalating Step11 E2E again with a fresh smoke run and additional on-chain diagnostics. The source-chain trigger is confirmed, but the Reactive-side callback path still does not materialize.
+We reduced the issue to a minimal reproducible case. The remaining blocker is not our business logic, not Base execution wiring, and not smoke-test false positives. The failure is now consistently isolated to Lasna subscription setup itself.
 
-Execution window
-- Project: reactive-vault-sentinel
-- Plan: D:\reactive hackathon\.claude\plan\vault-sentinel.md
-- Latest smoke tx: 0x7b9f8c5ffa726ce899a97d2212114b47e1eb54b6739e09add7d5cb0cd7ce87a2
+## Minimal conclusion
+`service.subscribe(...)` on Lasna reverts with `Failure` in every path we tested:
+1. minimal one-subscription probe, constructor-time subscribe
+2. minimal one-subscription probe, post-deploy `subscribeOnce(...)`
+3. full `VaultSentinelReactive`, constructor-init mode
+4. full `VaultSentinelReactive`, post-deploy `initializeDefaultSubscriptions()` mode
 
-Latest smoke result
-- Step11 script executed with secure keystore signer mode.
-- Result: FAIL
-- Source event observed on Sepolia: YES
-- Callback observed on Lasna: NO
-- Sentinel debt: 8766700000000000 wei
-- Runtime symptom during the run: curl HTTP 400 from RPC path
+## Environment
+- Project: `reactive-vault-sentinel`
+- Source chain: Sepolia (`11155111`)
+- Destination chain: Base Sepolia (`84532`)
+- Reactive chain: Lasna (`5318007`)
+- Source contract used in repro: `0xFac28E7a698668f160C4735005C34Cbe57EbdC02`
+- Topic0 used in repro: `keccak256("AnswerUpdated(int256,uint256,uint256)")`
+- Reactive system contract: `0x0000000000000000000000000000000000fffFfF`
 
-Fresh on-chain diagnostics
-1) Sentinel registry/config on Lasna appears valid
-- getRuleIds() => [0, 1]
-- nextRuleId() => 2
-- rules(0) =>
-  - id=0
-  - ruleType=PriceBelow
-  - paused=false
-  - sourceChainId=11155111
-  - sourceContract=0xFac28E7a698668f160C4735005C34Cbe57EbdC02
-  - topic0=AnswerUpdated(int256,uint256,uint256)
-  - adapter=0x4CB3Ce4DeCE936Aa93f1ABb95550Ad187f03f14E
-  - callbackGas=300000
-  - threshold=180000000000
-- rules(1) decoding through cast was inconsistent in this diagnostic pass, but prior evidence shows it exists and is unpaused.
+## Relevant code
+- Minimal probe: `contracts/script/ValidateLasnaOneSub.s.sol`
+- Full deploy script: `contracts/script/DeployLasna.s.sol`
+- Sentinel contract: `contracts/src/sentinel/VaultSentinelReactive.sol`
+- Smoke script: `scripts/e2e/smoke.sh`
 
-2) Destination execution gateway on Base Sepolia appears configured
-- allowedAdapters(BASIC_TRANSFER_ADAPTER) => true
-- allowedAdapters(UNISWAP_STOP_ORDER_ADAPTER) => true
-- allowedAdapters(AAVE_PROTECTION_ADAPTER) => true
+## Repro 1 - minimal one-subscription probe
+Probe contract:
+- `OneSubscriptionProbe._subscribeOnce(...)` calls:
+  - `service.subscribe(sourceChainId, sourceContract, topic0, REACTIVE_IGNORE, REACTIVE_IGNORE, REACTIVE_IGNORE)`
 
-3) Chain heads were live during diagnosis
-- Sepolia block: 10540748
-- Base Sepolia block: 39473450
-- Lasna block: 2906450
+Observed result:
+- constructor-time subscribe: revert
+- post-deploy `subscribeOnce(...)`: revert
 
-4) Source-event prerequisite still satisfied
-- Latest smoke tx: 0x7b9f8c5ffa726ce899a97d2212114b47e1eb54b6739e09add7d5cb0cd7ce87a2
-- Step11 summary confirms: SEPOLIA_ANSWER_UPDATED_OBSERVED=YES
-- Trigger value was set below the configured threshold, matching rule(0) expectations.
+Failure shape in trace:
+- `0x0000000000000000000000000000000000fffFfF::subscribe(...)`
+- then `0x0000000000000000000000000000000000000064::00000000(...)`
+- then `Revert: Failure`
 
-5) Reactive-side behavior still missing
-- Latest smoke summary confirms: LASNA_CALLBACK_EVENTS_FOUND=NO
-- Historical evidence already shows repeated empty results for both:
-  - Callback(uint256,address,uint64,bytes)
-  - RuleTriggered(uint256,uint256,uint256)
-- This has remained stable across multiple secure reruns.
+This happens even with a single subscription and no app-specific callback logic.
 
-Assessment
-- This no longer looks like a frontend, local script, or destination-adapter-whitelist issue.
-- It also does not look like a rule-registration problem: the sentinel has active rules on Lasna, and rule(0) matches the observed Sepolia event shape.
-- Current strongest fault domain remains Reactive runtime/indexing/match/dispatch/delivery on the Lasna side, or RPC/indexer visibility degradation for those events.
+## Repro 2 - full sentinel deploy after Base-side cleanup
+We fixed the Base-side execution confounders first:
+- `DeployBaseSepolia` now fail-fast requires `VAULT_SENTINEL_REACTIVE`
+- `DeployBaseSepolia` supports keystore/account signer flow
+- Base was redeployed successfully with:
+  - `VaultExecution: 0x00a03196D9536337ed857F5D43dc7aE648e89Bf9`
+  - `BasicTransferAdapter: 0x5DCe4Eaaf21Bf4DaCB767dC6a8b45B7165dD92C0`
+  - `UniswapStopOrderAdapter: 0x91Da5ee2A393B8056E688BDD43103854b0Ee7128`
+  - `AaveProtectionAdapter: 0x06013D3B5cA4662246CC3E345E39BEDf29758484`
 
-Specific requests
-1) Verify ingest -> match -> dispatch -> vmOnly react(LogRecord) for contract 0x0C9EA7c7D65B494409d6523477bfFaf66F618F04 around the latest tx window.
-2) Confirm whether the Sepolia event for tx 0x7b9f8c5ffa726ce899a97d2212114b47e1eb54b6739e09add7d5cb0cd7ce87a2 was ingested and matched.
-3) If dropped, provide the drop reason (chain_id / contract / topic_0 / decode / gas/debt / queue / infra incident).
-4) Confirm current Lasna RPC / indexer health for eth_getLogs and callback visibility.
-5) Clarify why paused()(bool) has historically reverted on this deployment in prior diagnostics.
+After updating env to those new Base addresses, Lasna deploy still failed.
 
-Artifacts
-- D:\reactive hackathon\reactive-vault-sentinel\scripts\e2e\step11-incident-evidence.txt
-- D:\reactive hackathon\reactive-vault-sentinel\scripts\e2e\reactive-escalation-template.txt
-- Latest smoke tx: 0x7b9f8c5ffa726ce899a97d2212114b47e1eb54b6739e09add7d5cb0cd7ce87a2
+Latest full deploy failure:
+- new sentinel address in reverted trace: `0xB0189c0db1aC45cfe1fe8d05f90F3c5d38b09cBf`
+- failure occurs in:
+  - `VaultSentinelReactive::initializeDefaultSubscriptions()`
+  - internal `service.subscribe(...)`
+- trace shape:
+  - `0x0000000000000000000000000000000000fffFfF::subscribe(...)`
+  - `0x0000000000000000000000000000000000000064::00000000(...)`
+  - `Revert: Failure`
 
-We can provide more tx-level traces immediately if needed.
+## Repro 3 - tightened smoke test, no false-positive pass path left
+We tightened `scripts/e2e/smoke.sh` so it can no longer pass due to unrelated Base events:
+- PASS now requires the current run to observe a new Lasna `Callback`
+- Base `ExecutionSucceeded` is checked only after this run's Lasna callback anchor
+
+Latest smoke run after tightening:
+- `TX_HASH: 0xf76b9a5ecfc8ed2acd33393aa89b866ce352313255e20ca327e52b0d7d173c60`
+- `SEPOLIA_ANSWER_UPDATED_OBSERVED: YES`
+- `LASNA_RULE_TRIGGERED_FOUND: NO`
+- `LASNA_CALLBACK_EVENTS_FOUND: NO`
+- `BASE_EXECUTION_SUCCEEDED_FOUND: NO`
+- `SENTINEL_DEBT_DEC: 0`
+- `SENTINEL_PAUSED_STATE: unknown`
+- `DEFAULT_SUBSCRIPTIONS_INITIALIZED: unknown`
+- final diagnosis:
+  - `DIAGNOSIS: SOURCE_EVENT_OBSERVED_BUT_NO_REACTIVE_RULETRIGGERED_OR_CALLBACK.`
+  - `FAIL: Step11 smoke verification failed.`
+
+This means the old smoke false-positive path is gone. The failure remains.
+
+## What has been ruled out
+We have already ruled out these confounders:
+- public RPC 403 issue on previous providers
+- wrong Git Bash signer path (`/mnt/d/...` vs `/d/...`)
+- unpaid Lasna debt (`debt = 0`)
+- Base execution zero-address reactive sender misconfiguration
+- Base adapter whitelist setup failure
+- false-positive smoke PASS caused by unrelated Base execution events
+- app-specific business logic as the primary fault domain (minimal single-subscription probe fails too)
+
+## Current strongest fault domain
+Lasna raw subscription path itself:
+- subscription registration
+- ingest/match/dispatch before callback
+- or system contract / infra behavior behind `service.subscribe(...)`
+
+## Specific requests
+1. Please verify why `service.subscribe(...)` is reverting on Lasna for this minimal case.
+2. Please inspect the internal failure behind:
+   - `0x0000000000000000000000000000000000fffFfF::subscribe(...)`
+   - forwarded to `0x0000000000000000000000000000000000000064::00000000(...)`
+3. Please confirm whether this is:
+   - unsupported subscription path
+   - infra/indexer issue
+   - chain-side configuration issue
+   - callback registration policy issue
+   - gas/deposit requirement not surfaced to callers
+4. Please confirm whether `eth_getLogs` / callback visibility on Lasna is degraded for this deployment window.
+
+## Local artifacts
+- `scripts/e2e/step11-incident-evidence.txt`
+- `scripts/e2e/step11-escalation-final.txt`
+- `contracts/script/ValidateLasnaOneSub.s.sol`
+- `contracts/script/DeployLasna.s.sol`
+- `scripts/e2e/smoke.sh`
+
+If needed, we can provide the exact forge commands and full traces, but the key point is simple:
+
+> even the smallest possible single-subscription repro fails at Lasna `service.subscribe(...)` before any useful app logic runs.

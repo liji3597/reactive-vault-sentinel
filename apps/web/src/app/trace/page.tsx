@@ -1,15 +1,38 @@
 'use client';
 
-import { RefreshCw, Play, Square, History } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { RefreshCw, Play, Square, History, Check, Copy } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import CrossChainMap from '@/components/trace/CrossChainMap';
 import { useReactiveTrace } from '@/hooks/useReactiveTrace';
 import type { TraceLog } from '@/lib/demoData';
 
 export default function TracePage() {
   const { mode, activePhase, isLive, setIsLive, lastUpdate, logs } = useReactiveTrace();
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopy = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   return (
-    <div className="space-y-8 max-w-[1600px] mx-auto">
+    <div className="space-y-8 max-w-[1600px] mx-auto relative">
+      <AnimatePresence>
+        {copiedId && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 text-white text-sm font-bold shadow-cyan-glow"
+          >
+            <Check size={16} />
+            Copied to clipboard
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {mode === 'demo' && (
         <section className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 text-sm text-amber-100">
           Showing a simulated cross-chain execution trace. No on-chain polling runs until real contract addresses are configured.
@@ -79,7 +102,12 @@ export default function TracePage() {
         </div>
         <div className="p-6 font-mono text-xs space-y-3 max-h-64 overflow-y-auto">
           {logs.map((entry, index) => (
-            <LogEntry key={`${entry.time}-${index}`} {...entry} />
+            <LogEntry 
+              key={`${entry.time}-${index}`} 
+              {...entry} 
+              onCopy={(text) => handleCopy(text, `${entry.time}-${index}`)}
+              isCopied={copiedId === `${entry.time}-${index}`}
+            />
           ))}
         </div>
       </section>
@@ -87,7 +115,12 @@ export default function TracePage() {
   );
 }
 
-function LogEntry({ time, chain, msg, type }: TraceLog) {
+interface LogEntryProps extends TraceLog {
+  onCopy: (text: string) => void;
+  isCopied: boolean;
+}
+
+function LogEntry({ time, chain, msg, type, onCopy, isCopied }: LogEntryProps) {
   const colors: Record<TraceLog['type'], string> = {
     info: 'text-slate-400',
     warning: 'text-amber-400',
@@ -124,14 +157,18 @@ function LogEntry({ time, chain, msg, type }: TraceLog) {
         </div>
       </div>
       <button 
-        className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-slate-800 text-slate-500 hover:text-cyan-400"
-        title="Copy transaction hash"
+        className={`transition-all p-1.5 rounded-md ${
+          isCopied 
+            ? 'bg-emerald-500/20 text-emerald-400 opacity-100' 
+            : 'opacity-0 group-hover:opacity-100 bg-slate-800 text-slate-500 hover:text-cyan-400'
+        }`}
+        title="Copy transaction hash or message"
         onClick={() => {
-          // In a real app, this would copy to clipboard
-          console.log('Copying TX from chain:', chain);
+          // In a real app, this would copy the TX hash if available, here we copy the message
+          onCopy(msg);
         }}
       >
-        <History size={14} />
+        {isCopied ? <Check size={14} /> : <Copy size={14} />}
       </button>
     </div>
   );
